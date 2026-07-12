@@ -11,6 +11,7 @@ import (
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/app"
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/commerce"
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/platform/config"
+	connectt "github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/transport/connectrpc"
 	gqlt "github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/transport/graphql"
 	mcpt "github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/transport/mcp"
 	mqttt "github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/transport/mqtt"
@@ -37,6 +38,8 @@ func main() {
 	ucp := commerce.NewService(a.Events)
 	go ucp.WatchSafetyEvents(context.Background())
 	srv.Commerce = ucp.Routes()
+
+	srv.ConnectPath, srv.Connect = connectt.NewHandler(a.Bus)
 
 	if url := os.Getenv("MQTT_URL"); url != "" {
 		if sub, err := mqttt.NewSubscriber(url, "iatg-gateway", a.Bus); err != nil {

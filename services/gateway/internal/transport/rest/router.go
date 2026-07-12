@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -40,10 +41,12 @@ type Server struct {
 	apiKey   string
 
 	// Optional protocol surfaces mounted alongside REST; nil = not enabled.
-	WS       http.Handler // /ws
-	GraphQL  http.Handler // /graphql (API-key guarded)
-	MCP      http.Handler // /mcp
-	Commerce chi.Router   // /ucp/v1 (API-key guarded)
+	WS          http.Handler // /ws
+	GraphQL     http.Handler // /graphql (API-key guarded)
+	MCP         http.Handler // /mcp
+	Commerce    chi.Router   // /ucp/v1 (API-key guarded)
+	ConnectPath string       // Connect-RPC mount path (e.g. /iatg.v1.TrustService/)
+	Connect     http.Handler
 }
 
 func NewServer(bus *cqrs.Bus, apiKey string) *Server {
@@ -79,6 +82,11 @@ func (s *Server) Router() http.Handler {
 	}
 	if s.Commerce != nil {
 		r.With(middleware.APIKey(s.apiKey)).Mount("/ucp/v1", s.Commerce)
+	}
+	if s.Connect != nil && s.ConnectPath != "" {
+		// Connect handlers route on the full request path, so mount without
+		// stripping the prefix (trim the trailing slash for chi's pattern).
+		r.With(middleware.APIKey(s.apiKey)).Mount(strings.TrimSuffix(s.ConnectPath, "/"), s.Connect)
 	}
 
 	r.NotFound(func(w http.ResponseWriter, _ *http.Request) {

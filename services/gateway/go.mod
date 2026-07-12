@@ -3,6 +3,7 @@ module github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway
 go 1.25.0
 
 require (
+	connectrpc.com/connect v1.20.0
 	github.com/coder/websocket v1.8.15
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/go-chi/chi/v5 v5.1.0
@@ -11,6 +12,7 @@ require (
 	github.com/graphql-go/graphql v0.8.1
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/redis/go-redis/v9 v9.7.0
+	google.golang.org/protobuf v1.36.11
 )
 
 require (

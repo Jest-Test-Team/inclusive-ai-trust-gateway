@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package iatg.v1;
+
+option go_package = "github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/transport/connectrpc/gen/iatg/v1;iatgv1";
+
+// TrustService is the Connect-RPC surface of the trust gateway. The same
+// schema generates the TypeScript client used by apps/web.
+service TrustService {
+  rpc EvaluateService(EvaluateServiceRequest) returns (Assessment) {}
+  rpc GetAssessment(GetAssessmentRequest) returns (Assessment) {}
+  rpc ListAssessments(ListAssessmentsRequest) returns (ListAssessmentsResponse) {}
+  rpc ListSafetyEvents(ListSafetyEventsRequest) returns (ListSafetyEventsResponse) {}
+}
+
+message Persona {
+  string label = 1;
+  string age_group = 2;
+  string region = 3;
+  repeated string needs = 4;
+  repeated string barriers = 5;
+}
+
+message EvaluateServiceRequest {
+  string name = 1;
+  string domain = 2;
+  string description = 3;
+  repeated string target_users = 4;
+  repeated string sdgs = 5;
+  repeated string open_data_sources = 6;
+  repeated string ai_capabilities = 7;
+  repeated string safeguards = 8;
+  repeated Persona personas = 9;
+}
+
+message GetAssessmentRequest {
+  string id = 1;
+}
+
+message ListAssessmentsRequest {
+  int32 limit = 1;
+}
+
+message Assessment {
+  string id = 1;
+  string name = 2;
+  string domain = 3;
+  int32 inclusion_score = 4;
+  int32 fairness_risk = 5;
+  string fairness_risk_label = 6;
+  int32 open_data_readiness = 7;
+  int32 agent_safety_readiness = 8;
+  string evaluator = 9;
+  string created_at = 10; // RFC 3339
+}
+
+message ListAssessmentsResponse {
+  repeated Assessment items = 1;
+}
+
+message ListSafetyEventsRequest {
+  int32 limit = 1;
+}
+
+message SafetyEvent {
+  string id = 1;
+  string event_type = 2;
+  string severity = 3;
+  string session_id = 4;
+  string received_at = 5; // RFC 3339
+}
+
+message ListSafetyEventsResponse {
+  repeated SafetyEvent items = 1;
+}
