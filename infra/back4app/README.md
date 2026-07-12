@@ -10,9 +10,7 @@ to separate Back4App apps:
 | `redis` | `infra/back4app/redis` | `6379` | Set gateway `REDIS_URL=redis://<redis-app-host>:6379/0`. |
 | `mosquitto` | `infra/back4app/mosquitto` | `1883` | Set gateway `MQTT_URL=tcp://<mosquitto-app-host>:1883`. |
 | `postgres` | `infra/back4app/postgres` | `5432` | Demo database only. Production should keep using Neon primary + Supabase backup. |
-| `adm-gateway` | `services/adm-gateway` | `8080` | Uses `ghcr.io/jest-test-team/adm-gateway:latest`; also exposes gRPC `9090`. |
-| `adm-siem` | `services/adm-siem` | `9091` | Uses `ghcr.io/jest-test-team/adm-siem:latest`. |
-| `adm-stack` | `services/adm-stack` | `8080` | Optional combined ADM gateway + SIEM source-built container. |
+| `adm-stack` | `services/adm-stack` | `8080` | Combined ADM gateway + SIEM source-built container; also exposes internal SIEM `9091` and gRPC `9090`. |
 | `erh-engine` | `services/erh-engine` | `8000` | Vendored ERH engine and `erh_core` copied into this repo. |
 
 ## Gateway env after deploying dependencies

@@ -17,6 +17,6 @@ Back4App settings:
   - `ADM_SIEM_URL=http://127.0.0.1:9091`
   - `ADM_REDIS_ADDR=<redis-host>:6379`
 
-This combined container is useful when Back4App free-plan limits make separate
-ADM apps inconvenient. For production, separate `services/adm-gateway` and
-`services/adm-siem` still give cleaner health checks, logs, and restarts.
+This combined container is the canonical ADM deployment for this repo. It
+replaces the old separate `services/adm-gateway` and `services/adm-siem`
+wrappers.
