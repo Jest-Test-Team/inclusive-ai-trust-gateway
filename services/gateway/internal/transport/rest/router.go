@@ -38,6 +38,12 @@ type Server struct {
 	bus      *cqrs.Bus
 	validate *validator.Validate
 	apiKey   string
+
+	// Optional protocol surfaces mounted alongside REST; nil = not enabled.
+	WS       http.Handler // /ws
+	GraphQL  http.Handler // /graphql (API-key guarded)
+	MCP      http.Handler // /mcp
+	Commerce chi.Router   // /ucp/v1 (API-key guarded)
 }
 
 func NewServer(bus *cqrs.Bus, apiKey string) *Server {
@@ -61,6 +67,19 @@ func (s *Server) Router() http.Handler {
 		v1.Post("/adm/events", s.ingestADMEvent)
 		v1.Get("/adm/events", s.listADMEvents)
 	})
+
+	if s.WS != nil {
+		r.Handle("/ws", s.WS) // key checked in-handler via ?api_key=
+	}
+	if s.GraphQL != nil {
+		r.With(middleware.APIKey(s.apiKey)).Post("/graphql", s.GraphQL.ServeHTTP)
+	}
+	if s.MCP != nil {
+		r.With(middleware.APIKey(s.apiKey)).Handle("/mcp", s.MCP)
+	}
+	if s.Commerce != nil {
+		r.With(middleware.APIKey(s.apiKey)).Mount("/ucp/v1", s.Commerce)
+	}
 
 	r.NotFound(func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
