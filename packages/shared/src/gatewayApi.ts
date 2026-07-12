@@ -254,7 +254,7 @@ export async function probeGateway(config: GatewayClientConfig, useCase: PublicS
       },
       body: JSON.stringify({ jsonrpc: "2.0", id: "probe", method: "tools/list", params: {} }),
     });
-    if (res.status >= 500) throw new Error(`MCP endpoint returned ${res.status}`);
+    if (!res.ok) throw new Error(`MCP endpoint returned ${res.status}`);
     return `HTTP endpoint reachable (${res.status})`;
   });
 

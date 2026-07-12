@@ -16,7 +16,7 @@ import {
   type LiveSafetyEvent,
   type PublicServiceUseCase,
 } from "@iatg/shared";
-import { apiBaseURL, apiKey, gateway, gatewayOrigin, liveMode, openLiveFeed } from "../lib/api";
+import { apiBaseURL, apiKey, gateway, liveMode, openLiveFeed } from "../lib/api";
 
 type Locale = "en" | "zh-TW";
 
@@ -350,7 +350,7 @@ function ApiSurfacePanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Rec
           <h2>{t.apiTitle}</h2>
         </div>
         {liveMode && (
-          <a href={`${gatewayOrigin.replace(/\/+$/, "")}/docs`} target="_blank" rel="noreferrer">
+          <a href={gateway.docsURL} target="_blank" rel="noreferrer">
             {t.swagger}
           </a>
         )}

@@ -12,6 +12,7 @@ to separate Back4App apps:
 | `postgres` | `infra/back4app/postgres` | `5432` | Demo database only. Production should keep using Neon primary + Supabase backup. |
 | `adm-gateway` | `services/adm-gateway` | `8080` | Uses `ghcr.io/jest-test-team/adm-gateway:latest`; also exposes gRPC `9090`. |
 | `adm-siem` | `services/adm-siem` | `9091` | Uses `ghcr.io/jest-test-team/adm-siem:latest`. |
+| `adm-stack` | `services/adm-stack` | `8080` | Optional combined ADM gateway + SIEM source-built container. |
 | `erh-engine` | `services/erh-engine` | `8000` | Vendored ERH engine and `erh_core` copied into this repo. |
 
 ## Gateway env after deploying dependencies
