@@ -21,9 +21,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Add python / go here when services/erh and services/adm land
-        # (implementation plan subtasks 9-10).
-        language: [javascript-typescript]
+        # python joins if we vendor ERH wrapper code (engines are pulled
+        # as images today).
+        language: [javascript-typescript, go]
     steps:
       - uses: actions/checkout@v4
       - uses: github/codeql-action/init@v3

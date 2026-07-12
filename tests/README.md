@@ -14,6 +14,8 @@ tests/
     +-- api/
     |   +-- health.robot           # gateway liveness            [smoke, api]
     |   +-- assessments.robot      # /v1 contract tests          [api]
+    |   +-- graphql.robot          # /graphql read model         [api, graphql]
+    |   +-- ucp_commerce.robot     # UCP trust-gating scenario   [api, ucp]
     +-- web/
         +-- dashboard_smoke.robot  # FE shell + rendered UI      [smoke, ui]
 ```
@@ -59,7 +61,7 @@ robot --include ui --variable APP_URL:https://app.<domain> \
 | `ui` | Selenium browser tests; require headless Chrome |
 | `security` | Auth/abuse-focused cases; also part of `api` runs |
 
-The `api`-tagged suites intentionally encode the contract from
-`docs/dev-plan/implementation.plan.md` before the gateway exists — they are the
-acceptance criteria for subtasks 4–6 and will fail until the service is up.
-Results land in `tests/results/` (gitignored).
+The `api`-tagged suites run against the Go gateway (`services/gateway`) —
+locally via `go run ./cmd/gateway`, in CI via the `gateway` job, and against
+Back4App/Cloudflare deployments via `BASE_URL`. Results land in
+`tests/results/` (gitignored).
