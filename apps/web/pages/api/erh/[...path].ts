@@ -4,4 +4,5 @@ import { createProxyHandler } from "../../../lib/serverProxy";
 
 export default createProxyHandler({
   originEnv: ["ERH_API_BASE_URL", "NEXT_PUBLIC_ERH_API_BASE_URL"],
+  defaultOrigin: "https://erhengine-u5vn1stl.b4a.run",
 });
