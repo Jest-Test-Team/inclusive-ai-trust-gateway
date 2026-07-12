@@ -15,6 +15,7 @@ Back4App settings:
   - `ADM_PORT=8080`
   - `ADM_GRPC_PORT=9090`
   - `ADM_SIEM_URL=http://127.0.0.1:9091`
+  - `ADM_SIEM_PORT=9091`
   - `ADM_REDIS_ADDR=<redis-host>:6379`
 
 This combined container is the canonical ADM deployment for this repo. It

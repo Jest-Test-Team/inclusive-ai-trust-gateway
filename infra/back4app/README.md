@@ -1,8 +1,9 @@
 # Back4App Container Deployment Roots
 
 Back4App deploys one container per app and expects a `Dockerfile` in the
-selected root directory. The local `infra/docker/docker-compose.yml` stack maps
-to separate Back4App apps:
+selected root directory. You must also fill the Back4App **Port** setting for
+each app; `EXPOSE` in Dockerfiles is not enough for Back4App. The local
+`infra/docker/docker-compose.yml` stack maps to separate Back4App apps:
 
 | Compose service | Back4App app root | Port | Notes |
 |---|---:|---:|---|

@@ -241,7 +241,7 @@ func main() {
 		panic(err)
 	}
 
-	port := os.Getenv("ADM_PORT")
+	port := os.Getenv("ADM_SIEM_PORT")
 	if port == "" {
 		port = "9091"
 	}
