@@ -1,192 +1,205 @@
-# Inclusive AI Trust Gateway — Implementation Plan
+# Inclusive AI Trust Gateway — Implementation Plan (v2)
 
 Target competition: **2026 Presidential Hackathon, International Track**
 Theme: **Digital Inclusion in the AI Era** (數位共好：打造AI新未來)
+Deadline: **July 31, 2026, 17:00 GMT+8** — preliminary judging: Feasibility 40% / Innovation 30% / Social Impact 30%.
 
-Sources inspected:
+Sources inspected: `hint.txt`, [MODA press release 20076](https://moda.gov.tw/press/press-releases/20076), [international-track rules](https://presidential-hackathon.taiwan.gov.tw/en/international-track/), [UCP protocol deep-dive](https://www.agenticcommerceguide.com/blog/the-ucp-protocol-a-comprehensive-technical-deep-dive), plus full source inspection of both engine repos (§2).
 
-- `hint.txt` (repo root) — MODA press-release text, submission form fields, and the question of whether ADM and Ethic-Latex fit this hackathon.
-- <https://moda.gov.tw/press/press-releases/20076> — MODA call-for-submissions press release.
-- <https://presidential-hackathon.taiwan.gov.tw/en/international-track/> — official international-track rules.
-
----
-
-## 1. Hackathon Constraints That Shape This Plan
-
-| Constraint | Value | Consequence for us |
-|---|---|---|
-| Submission window | May 22 – **July 31, 2026, 17:00 GMT+8** | All submission-facing work must be demo-ready before July 31, 2026. Today is July 12, 2026 → **~19 days**. |
-| Preliminary review | Aug 6–16, 2026 (Feasibility 40%, Innovation 30%, Social Impact 30%) | The submission must show a *working, deployed* demo plus clear inclusion impact. |
-| Finals | Late Oct 2026 (adds Implementation 30%) | Post-submission phases target real integration and pilot evidence. |
-| Team | 3–10 members, ≥1 non-Taiwan national | Organizational, not technical — track in submission doc. |
-| Language | All materials in English | All docs, UI copy, and the demo video in English (zh-TW as secondary locale is a feature, not the default). |
-
-### Are ADM and Ethic-Latex suitable? (question from `hint.txt`)
-
-**Yes — as engines behind one combined proposal, not as two separate entries.**
-
-- **Ethic-Latex / ERH** (`~/Documents/GitHub/Ethic-Latex`, Python: `erh_engine`, `erh_core`, existing `deploy/` + `docker/` assets) provides fairness / ethical-risk / cumulative-error evaluation. Alone it is a research tool — judges would score Social Impact well but Feasibility poorly.
-- **Agentic Defense Matrix** (`~/Documents/GitHub/Agentic Defense Matrix (ADM)`, Go: `cmd/`, `pkg/`, `agents/`, `dashboard/`, `docker-compose.yml`) provides AI-agent safety: prompt-injection monitoring, tool-call policy, containment. Alone it is a security product — strong Feasibility, weak fit with the *inclusion* theme.
-- **Combined as the Inclusive AI Trust Gateway**, they answer the theme directly: *inclusive* public AI services need both equity auditing (ERH) and operational safety (ADM). This is also exactly how the existing repo scaffold (`adapters/ethic-latex`, `adapters/adm`) is structured.
+> **v2 supersedes v1.** After a gap review and a decision round with the project owner, this revision commits to: real ADM + ERH container integration, a Next.js/Expo monorepo, a NestJS gateway, and **all seven interface protocols live by July 31**. v1's hosting decisions (Back4App containers, Vercel FE, Neon Postgres, Cloudflare) still stand.
 
 ---
 
-## 2. Target Architecture and Hosting Decisions
+## 1. Decision Log (owner-confirmed, 2026-07-12)
 
-```mermaid
-flowchart LR
-    U[Citizens / Agency reviewers] --> CF[Cloudflare\nDNS + WAF + Bot Mgmt + TLS]
-    CF --> FE[Frontend\nVercel — Vite/TS dashboard]
-    CF --> API[Gateway API\nBack4App Containers — Node/Fastify]
-    API --> ERH[ERH evaluator service\nBack4App Containers — Python/FastAPI]
-    API --> ADM[ADM safety service\nBack4App Containers — Go]
-    API --> PG[(Neon\nServerless Postgres)]
-```
-
-| Concern | Decision | Notes |
+| # | Decision | Choice |
 |---|---|---|
-| Frontend | **Vercel** | Existing Vite + TypeScript app in `src/`. Zero-config deploy; preview deployments per PR. |
-| Backend API | **Back4App Containers** (`containers.back4app.com`) | Dockerized services; free tier: 0.25 CPU / 256 MB / 100 GB transfer per app — enough for a demo. Each service is its own container app. |
-| Relational DB | **Neon** (serverless Postgres) | Interpreting "neo" as **Neon**. If **Neo4j** was intended: Neo4j is a *graph* (non-relational) DB — see §4 discussion before adopting. |
-| Non-relational DB | **Not required for MVP** — see §4 | Discuss before adding. |
-| DNS / security | **Cloudflare** | Domain control, TLS, WAF managed rules, rate limiting, bot fight mode; FE and API behind proxied CNAMEs. |
-| CI / security scanning | **GitHub Actions + GHAS** | CodeQL, secret scanning + push protection, Dependabot, dependency review. |
-| E2E / acceptance tests | **Robot Framework** in `tests/` | API suites (RequestsLibrary) + UI smoke suites (SeleniumLibrary), run in CI and against deployed URLs. |
+| D1 | Protocols live by Jul 31 | **All seven**: REST, WebSocket, tRPC, GraphQL, MQTT, MCP, UCP |
+| D2 | Engine integration | **Real containers via compose** — no stubs in the demo path |
+| D3 | Frontend | **Next.js web ships Jul 31**; Expo React Native scaffolded now, ships post-submission (finals adds Implementation 30% in Oct) |
+| D4 | Gateway framework | **NestJS** (native DTO / CQRS / Entity / middleware / microservice transports) |
+| D5 | UCP theme fit | **Inclusive-commerce demo scenario** (§5.3) |
+| D6 | MQTT broker + Redis in prod | **Back4App containers first**; fall back to Upstash Redis + HiveMQ Cloud if Back4App proves unworkable |
+| D7 | Database | **Neon Postgres + Prisma**; **Supabase Postgres as backup** (§7.3) |
+| D8 | Repo shape | **Full pnpm/Turborepo monorepo; the Vite dashboard is retired** after its logic is ported to `packages/shared` |
 
-### Services to build
+## 2. Engine Gap Review (what integration actually means)
 
-1. **`services/gateway`** (new code, Node 20 + Fastify + TypeScript)
-   - Implements the endpoints already reserved in `services/gateway/README.md`:
-     - `POST /v1/assessments` — create a trust assessment for a public-service AI use case
-     - `GET /v1/assessments/:id` — retrieve assessment + evidence
-     - `POST /v1/erh/evaluate` — proxy to ERH service (fallback: local deterministic scoring from `src/app/scoring.ts` ported server-side)
-     - `POST /v1/adm/events` — ingest ADM safety events
-     - `GET /v1/open-data/readiness` — open-data readiness signals
-     - `GET /healthz` — liveness (used by Back4App health checks and Robot tests)
-   - Persists to Neon via Prisma (or Drizzle) migrations.
-   - Auth for MVP: single agency API key header (`X-Api-Key`), stored as Back4App env var; Cloudflare rate-limits unauthenticated traffic.
-2. **`services/erh`** (thin FastAPI wrapper around `erh_engine` from Ethic-Latex; starts as a stub that returns deterministic scores, swapped for the real engine when the Docker image is ready).
-3. **`services/adm`** (thin wrapper/exporter that forwards ADM telemetry events; starts as a stub emitting sample safety signals matching `src/app/sampleData.ts`).
+The v1 assumption that both engines need "wrapping" was wrong — both already expose deployable service surfaces:
 
-> MVP sequencing rule: **gateway with built-in deterministic scoring first** (demoable alone), ERH/ADM containers second. The demo must never depend on an unfinished integration.
+### Agentic Defense Matrix (`~/Documents/GitHub/Agentic Defense Matrix (ADM)`, Go)
+- **API gateway** `cmd/gateway`: REST `:8080` + gRPC `:9090`; **SIEM engine** `cmd/siem_engine` `:9091`; Redis 7 for sessions/streams; red/green agents for live exercises.
+- Prebuilt images on **GHCR** (`ghcr.io/jest-test-team/adm-gateway`, etc.) and a working `docker-compose.yml`.
+- A live hosted deployment (`api.dennisleehappy.org`: `/api/stats`, `/api/stream` SSE, `/api/system`, `/health`) usable as a fallback data source if local containers misbehave during the demo.
+- Research-grade detection: intent-drift (embedding-φ), containment primitives with measured µs-level latency.
 
-### Frontend changes
+### Ethic-Latex / ERH (`~/Documents/GitHub/Ethic-Latex`, Python)
+- **`erh_engine`**: standardized evaluation service — one contract (`Sample → EvaluateRequest/EvaluateResponse`) via **REST `POST /v1/evaluate` + gRPC `ERHEngine.Evaluate`**, own Dockerfile, 7 passing parity tests.
+- Extra endpoints reusable for our scenario: `POST /v1/iam/audit` (least-privilege divergence), `POST /v1/ueba/evaluate` (behavioral drift).
+- Verified surfaces documented in its README (status 2026-04-12); we integrate **only** `erh_engine`, not the experimental UI surfaces.
 
-- Add an API client layer so the dashboard reads assessments from `VITE_API_BASE_URL` when set, falling back to the current local `sampleData.ts` (offline/demo mode).
-- English-first UI copy; accessibility pass (keyboard nav, contrast, ARIA landmarks) — this is a *judged feature* under the inclusion theme, not polish.
+**Integration contract (gateway side):**
 
----
-
-## 3. Data Model (Neon Postgres)
-
-```sql
--- Core tables (managed via Prisma/Drizzle migrations in services/gateway)
-use_cases(id, name, domain, description, sdg_tags text[], created_at)
-personas(id, use_case_id fk, label, barriers text[], needs text[])
-assessments(id, use_case_id fk, inclusion_score int, fairness_risk int,
-            open_data_readiness int, agent_safety_readiness int,
-            summary text, created_at)
-evidence(id, assessment_id fk, source text,          -- 'erh' | 'adm' | 'open-data' | 'manual'
-         kind text, payload jsonb, created_at)
-safety_events(id, use_case_id fk, event_type text,    -- prompt_injection | tool_policy | containment
-              severity text, detail jsonb, received_at)
-open_data_sources(id, use_case_id fk, name, url, freshness_days int,
-                  has_accessibility_metadata bool, has_multilingual_labels bool)
-```
-
-- `jsonb` columns absorb the flexible ERH/ADM payloads — this is the main reason a separate document DB is unnecessary at this scale.
-
-## 4. Non-Relational DB — Discussion Placeholder (decide together)
-
-Not needed for MVP. Revisit only if one of these materializes:
-
-| Trigger | Candidate | Why |
+| Direction | Transport | Payload |
 |---|---|---|
-| High-volume ADM telemetry streams (finals pilot) | Redis / Upstash or a queue | Postgres inserts per event won't scale past demo volume. |
-| Persona/barrier relationship analysis ("which barriers co-occur across services") | **Neo4j (if "neo" meant Neo4j)** | Graph queries over persona–barrier–service networks. This would be *in addition to*, not instead of, Neon. |
-| Caching of ERH evaluation results | Cloudflare KV / cache rules | Cheap, no new DB. |
+| gateway → erh-engine | REST (gRPC later) | service-outcome `Sample[]` → fairness / error-growth (`α`) indicators |
+| adm-gateway → gateway | Webhook POST `/v1/adm/events` + MQTT topic `adm/events/#` | safety events (prompt-injection, tool-policy, containment) |
+| gateway → dashboard | WebSocket `/ws` | live safety feed + assessment updates |
+| gateway → adm-gateway | REST | register monitored sessions for the UCP commerce scenario |
 
-**Decision needed from you:** confirm "neo" = Neon (assumed here) or Neo4j.
-
-## 5. Cloudflare Setup (domain + cybersecurity control)
-
-1. Domain onto Cloudflare (nameservers), DNS records:
-   - `app.<domain>` → CNAME to Vercel (proxied)
-   - `api.<domain>` → CNAME to Back4App container app (proxied)
-2. TLS: Full (strict); HSTS on.
-3. WAF: managed ruleset + rule blocking non-`/v1/*` paths to the API host.
-4. Rate limiting: e.g. 60 req/min/IP on `/v1/*`; stricter on `POST /v1/assessments`.
-5. Bot Fight Mode on; optionally Turnstile on any public form.
-6. Security headers via Transform Rules or a Snippet (CSP, X-Content-Type-Options, Referrer-Policy).
-
-## 6. Testing Strategy
-
-### 6.1 Robot Framework (`tests/`)
+## 3. Monorepo Layout (D8)
 
 ```text
-tests/
-+-- requirements.txt            # robotframework, requests, selenium libs
-+-- README.md                   # how to run locally and in CI
-+-- robot/
-    +-- resources/
-    |   +-- common.resource     # base URLs, API key, shared keywords
-    +-- api/
-    |   +-- health.robot        # /healthz liveness         [tag: smoke]
-    |   +-- assessments.robot   # CRUD + scoring contract   [tag: api]
-    +-- web/
-        +-- dashboard_smoke.robot  # dashboard loads, key UI landmarks [tag: ui]
+inclusive-ai-trust-gateway/
+├── apps/
+│   ├── web/            Next.js 15 dashboard (Vercel) — tRPC + REST + WS client
+│   └── mobile/         Expo React Native (scaffold now, ship post-submission)
+├── services/
+│   └── gateway/        NestJS API (Back4App container)
+├── packages/
+│   └── shared/         TS types, zod schemas, scoring logic ported from src/, API + WS clients
+├── infra/
+│   ├── docker/         Dockerfiles + docker-compose.yml (full stack incl. engines)
+│   └── database/       Prisma schema, SQL migrations, security (roles/RLS), backup runbook
+├── adapters/           ERH / ADM integration notes (kept as docs)
+├── docs/               plans, architecture, submission
+├── tests/              Robot Framework acceptance suites
+└── (src/ removed — logic lives in packages/shared, UI in apps/web)
 ```
 
-- All suites take `BASE_URL` / `APP_URL` as variables → same suites run against `localhost`, Back4App, and the Cloudflare-fronted production URL.
-- `smoke` tag = must pass in CI on every push. `api`/`ui` full suites run when the gateway service lands and nightly against staging.
-- UI suite uses SeleniumLibrary headless Chrome; API suites use RequestsLibrary.
+Tooling: pnpm workspaces + Turborepo (`turbo run build|test|lint` across packages), shared `tsconfig.base.json`.
 
-### 6.2 GHAS (GitHub Advanced Security)
+## 4. Gateway Architecture (D4) — pattern map
 
-| Control | Mechanism |
+The owner's required backend patterns map to concrete NestJS artifacts:
+
+| Requested pattern | Artifact in `services/gateway/src/` |
 |---|---|
-| Static analysis | CodeQL workflow — `javascript-typescript` now; add `python`/`go` matrices when those services land |
-| Dependency vulnerabilities | Dependabot (`.github/dependabot.yml`) for npm, pip, docker, actions |
-| PR-time dependency gating | `dependency-review` workflow on pull requests |
-| Secrets | Repo settings: secret scanning + push protection (enable in GitHub UI; free on public repos) |
-| Existing CI | Keep `ci.yml` typecheck/build; add Robot smoke job that builds the FE, serves it, runs `smoke`-tagged suites |
+| Request DTO / Form payload | `*/dto/*.request.dto.ts` — `class-validator` + `class-transformer` |
+| Response DTO | `*/dto/*.response.dto.ts` — serialized via interceptor |
+| Validation schema | class-validator decorators (HTTP) + zod in `packages/shared` (tRPC/FE) |
+| Entity (ORM) | Prisma models (`infra/database/schema.prisma`) + generated client; entity wrappers in `*/entities/` |
+| Value objects (VO/"vto") | `common/domain/*.vo.ts` (e.g. `Score`, `Severity` invariants) |
+| ViewModel / VM | `*/vm/*.vm.ts` — UI-shaped projections returned by queries |
+| CQRS command/query objects | `@nestjs/cqrs`: `*/commands/`, `*/queries/`, handlers |
+| Middleware | Nest guards (API key), pipes (validation), interceptors (serialization, logging), CORS |
+| Redis | `@nestjs/cache-manager` + ioredis: ERH result cache, WS fan-out pub/sub, rate counters |
+| Webhooks | `common/webhooks/` dispatcher (HMAC-signed) + `/v1/adm/events` inbound webhook |
 
-## 7. Work Breakdown — Subtasks and Commit Points
+Module layout:
 
-Commit after each subtask (repo convention: small, single-purpose commits).
+```text
+services/gateway/src/
+├── assessments/   controller (REST) · resolver (GraphQL) · commands/ · queries/ · dto/ · entities/ · vm/
+├── adm/           inbound webhook + MQTT subscriber · WS relay publisher
+├── erh/           REST client → erh-engine · Redis-cached · circuit breaker w/ deterministic fallback
+├── commerce/      UCP scenario module (§5.3)
+├── interop/       mcp/ (MCP server) · trpc/ (router) · graphql module wiring
+└── common/        guards · pipes · interceptors · redis · webhooks · domain VOs · config
+```
 
-| # | Subtask | Deliverable | Status |
+## 5. Protocol Plan (D1) — all seven by Jul 31
+
+| Protocol | Surface | Consumer | Vehicle | Demo proof |
+|---|---|---|---|---|
+| REST | `/v1/assessments`, `/v1/adm/events`, `/v1/erh/evaluate`, `/healthz` | web/mobile, partners, Robot | Nest controllers | Robot `api` suite |
+| WebSocket | `/ws` — safety-event + assessment stream | dashboard live feed | Nest WS gateway (socket.io) over Redis pub/sub | dashboard shows ADM event within seconds |
+| tRPC | `/trpc` — typed dashboard ops | apps/web (and mobile later) | tRPC router in `interop/trpc`, types from packages/shared | e2e type-safe query in web app |
+| GraphQL | `/graphql` — read model (assessments, events, personas) | partners/analysts | `@nestjs/graphql` code-first | GraphiQL query in demo video |
+| MQTT | `adm/events/#`, `telemetry/#` topics | ADM exporter, IoT-style sensors | Nest MQTT microservice transport + Mosquitto broker | publish → appears on dashboard via WS |
+| MCP | MCP server: `get_assessment`, `evaluate_service`, `list_safety_events`, `check_agent_trust` tools | any MCP client (Claude, IDEs, agents) | `@modelcontextprotocol/sdk`, streamable-HTTP at `/mcp` | Claude queries the gateway live |
+| UCP | inclusive-commerce endpoints (§5.3) | shopping agent in demo | `commerce/` module | scripted agent purchase, trust-gated |
+
+### 5.1 Sequencing rule
+REST is the substrate (week 1). WS + MQTT ride the same event bus (Redis pub/sub). GraphQL + tRPC are read-model projections of the same CQRS queries — cheap once queries exist. MCP + UCP are thin adapters over commands/queries. **No protocol gets its own business logic**; all seven front the same CQRS core, which is what makes "all seven" feasible in 19 days.
+
+### 5.2 MCP framing for judges
+"Any AI agent can ask the gateway whether a public AI service is safe and inclusive before using it" — this is the innovation headline (30% of preliminary score).
+
+### 5.3 UCP inclusive-commerce scenario (D5)
+Demo story: **an elderly, low-digital-literacy citizen delegates shopping for care products to an AI agent.**
+1. The agent transacts with a mock merchant through UCP (discovery → offer → checkout intent), JSON over HTTP/2-style request/response with UCP's extensibility fields.
+2. Every UCP call is proxied through the trust gateway: **ADM** watches the agent's tool-calls/session for drift or injection; **ERH** scores the fairness of offers shown to this persona (price discrimination, dark patterns, accessibility of terms).
+3. The dashboard shows the transaction trace with trust verdicts; a blocked malicious variant (agent hijacked mid-session → ADM containment) is the money shot.
+This makes UCP the theme showcase — *inclusion means people who can't navigate e-commerce themselves can safely delegate to agents*.
+
+## 6. Frontend & Mobile (D3)
+
+- **apps/web (Next.js 15, App Router)** — ships Jul 31 on Vercel:
+  - Trust dashboard (port of current UI): scores, gaps, mitigation plan.
+  - Live safety feed (WS) + UCP commerce-trace view.
+  - i18n scaffold (en default, zh-TW secondary) + WCAG 2.1 AA pass — judged under the theme.
+  - Data via tRPC (typed) with REST fallback.
+- **apps/mobile (Expo)** — scaffold only by Jul 31: navigation shell, shared API client from `packages/shared`, one read-only assessments screen. Shipped for finals (Oct).
+
+## 7. Data Layer (D7)
+
+### 7.1 Schema (Prisma, in `infra/database/schema.prisma`)
+v1's tables carry over (`use_cases`, `personas`, `assessments`, `evidence`, `safety_events`, `open_data_sources`) plus:
+
+```text
+commerce_sessions(id, use_case_id, agent_id, persona_id, status, started_at)
+commerce_events(id, session_id, ucp_action, payload jsonb, trust_verdict, created_at)
+webhook_subscriptions(id, url, secret_hash, event_types text[], active)
+```
+
+### 7.2 Migrations & security (`infra/database/`)
+- `migrations/` — Prisma-generated SQL, committed.
+- `security/` — SQL for roles (`gateway_rw`, `readonly_analyst`), RLS policies on `safety_events` and `commerce_*`, plus connection-security notes (Neon requires TLS; pooled connection string for serverless).
+
+### 7.3 Neon primary + Supabase backup
+- Primary: Neon (pooled `DATABASE_URL`).
+- Backup: Supabase Postgres kept schema-identical by running the same committed migrations in CI against both; nightly `pg_dump` from Neon restored to Supabase (GitHub Actions cron). Failover = swap `DATABASE_URL` env var on Back4App. Documented as `infra/database/BACKUP_RUNBOOK.md`. (True streaming replication is out of scope for the hackathon.)
+
+## 8. Infra (`infra/docker`, D2 + D6)
+
+```yaml
+# infra/docker/docker-compose.yml (composition, abridged)
+services:
+  trust-gateway:   # build: infra/docker/gateway.Dockerfile  → :3001
+  erh-engine:      # build: ../../../Ethic-Latex (erh_engine/Dockerfile) → :8000
+  adm-gateway:     # image: ghcr.io/jest-test-team/adm-gateway:latest → :8080/:9090
+  adm-siem:        # image: ghcr.io/jest-test-team/adm-siem:latest    → :9091
+  mosquitto:       # eclipse-mosquitto:2 → :1883
+  redis:           # redis:7-alpine → :6379 (shared by gateway + ADM)
+  postgres:        # postgres:16-alpine → :5432 (dev only; Neon in prod)
+```
+
+- The ERH build context points at the sibling checkout; CI and other machines can override with `ERH_CONTEXT` env or pull a pushed image once we publish one.
+- Prod (Back4App): one container app each for `trust-gateway`, `erh-engine`, `adm-gateway`, `adm-siem`, `mosquitto`, `redis` (D6: if Back4App networking/persistence blocks Mosquitto or Redis, fall back to HiveMQ Cloud / Upstash and change only env vars).
+- Cloudflare fronting (unchanged from v1 §5): `app.<domain>` → Vercel, `api.<domain>` → trust-gateway, `mqtt.<domain>` → broker (or direct), WAF + rate limits on `/v1/*`, `/graphql`, `/trpc`, `/mcp`.
+
+## 9. Testing
+
+- **Unit/integration**: Jest in `services/gateway` (CQRS handlers, VOs, ERH client fallback), Vitest in `packages/shared`.
+- **Robot Framework (`tests/`)**: existing `api`/`smoke` suites now target the NestJS gateway; add suites: `graphql.robot`, `websocket.robot`, `mqtt.robot` (paho publish → WS assert), `commerce_ucp.robot` (scenario walk), all still driven by `BASE_URL`/`APP_URL` variables.
+- **GHAS**: CodeQL matrix gains `python` and `go` only if we vendor engine code (we don't — images are pulled), so it stays `javascript-typescript`; Dependabot gains `npm` directories for the new workspaces and `docker` for `infra/docker`.
+- **CI**: turbo-aware jobs — `gateway-test`, `web-build`, `robot-smoke` (unchanged), nightly `robot-full` against the compose stack via `docker compose -f infra/docker/docker-compose.yml up`.
+
+## 10. Work Breakdown v2 — subtasks and commit points
+
+| # | Subtask | Key deliverable | Target |
 |---|---|---|---|
-| 0 | Track hint notes | `hint.txt`, `.gitignore` | ✅ committed |
-| 1 | This implementation plan | `docs/dev-plan/implementation.plan.md` | ✅ this commit |
-| 2 | Robot Framework test scaffold | `tests/` suites + requirements + README | next commit |
-| 3 | GHAS + test CI | CodeQL, Dependabot, dependency-review, Robot smoke workflow | next commit |
-| 4 | Gateway API service | `services/gateway` Fastify app + Dockerfile + Prisma schema, deterministic scoring | |
-| 5 | Neon provisioning + migrations | Neon project, `DATABASE_URL` in Back4App, first migration applied | |
-| 6 | Back4App deployment | Container app for gateway, health checks green, Robot `api` suite passing against it | |
-| 7 | FE API integration + Vercel deploy | Dashboard reads live API; `app.<domain>` live | |
-| 8 | Cloudflare domain + WAF | DNS, TLS, WAF, rate limits per §5 | |
-| 9 | ERH service container | FastAPI wrapper over `erh_engine`; gateway proxies to it | |
-| 10 | ADM event ingestion | ADM exporter posts events to `/v1/adm/events`; dashboard shows live safety signals | |
-| 11 | Submission package | Updated `docs/hackathon-submission.md`, demo video link, live URL | **before Jul 31** |
+| A | ✅ This plan + architecture.md rewrite | docs committed | Jul 12 |
+| B | Monorepo restructure | packages/shared ported, Vite retired, turbo green | Jul 13 |
+| C | Gateway core | REST + CQRS + Prisma + Redis + webhooks + Jest green | Jul 16 |
+| D | Event bus + WS + MQTT | ADM events → Redis → WS/MQTT, live feed demo | Jul 18 |
+| E | GraphQL + tRPC | read model projections, web app typed calls | Jul 19 |
+| F | infra/docker + infra/database | full compose up with real engines; migrations + security SQL | Jul 20 |
+| G | apps/web dashboard | ported UI + live feed on Vercel | Jul 22 |
+| H | MCP server | agent queries trust tools end-to-end | Jul 23 |
+| I | UCP commerce scenario | trust-gated agent purchase + containment demo | Jul 26 |
+| J | apps/mobile scaffold | Expo shell + shared client | Jul 27 |
+| K | Robot suites for new surfaces + CI update | all suites green locally + CI | Jul 28 |
+| L | Deploy: Back4App + Vercel + Neon/Supabase + Cloudflare | live URLs | Jul 29 |
+| M | Submission package + demo video | docs/hackathon-submission.md final | **Jul 30** |
 
-Subtasks 4–8 are the July 31 critical path; 9–10 can degrade to stubs if time runs short; 11 is mandatory.
+Commit convention: one commit minimum per subtask, more per coherent slice.
 
-## 8. Secrets and Environment Variables
+## 11. Risks (v2)
 
-| Name | Where | Used by |
-|---|---|---|
-| `DATABASE_URL` | Back4App env | gateway → Neon |
-| `GATEWAY_API_KEY` | Back4App env + Vercel env | agency auth |
-| `VITE_API_BASE_URL` | Vercel env | FE → API |
-| `ERH_SERVICE_URL`, `ADM_SERVICE_URL` | Back4App env | gateway → engines |
-| Cloudflare API token | local/CI only | DNS + WAF automation (never committed) |
-
-Never commit secrets; GHAS push protection is the backstop.
-
-## 9. Risks
-
-1. **19-day runway** → deterministic-scoring gateway first; engines are stretch goals.
-2. **"neo" ambiguity** → assumed Neon; flag before subtask 5 if Neo4j intended.
-3. **Back4App free-tier cold starts / limits** → keep containers small (distroless / alpine); demo video as fallback evidence.
-4. **ERH/ADM images are heavyweight** → wrap, don't port; stub interfaces are contract-compatible from day one so swapping is low-risk.
+1. **All-seven-protocols scope** — mitigated by §5.1 (thin adapters over one CQRS core); if the schedule slips ≥3 days by Jul 22, MQTT and GraphQL degrade to compose-only demos (owner accepted fallback ladder in D6-style ordering).
+2. **ADM GHCR images are built for the ADM exercise loop** — may need env flags to run standalone; fallback: `docker compose` build from ADM source checkout, or the live hosted API as data source.
+3. **ERH build context is a sibling checkout** — pin a commit SHA in `infra/docker/README.md`; publish our own image tag before Jul 20.
+4. **Back4App private networking between 6-7 containers** is unproven — D6 fallback to managed Redis/MQTT keeps only stateless apps on Back4App.
+5. **19-day runway** — apps/mobile and finals-only features are explicitly deferred; the demo video is recorded from the compose stack, deployment is the redundancy.

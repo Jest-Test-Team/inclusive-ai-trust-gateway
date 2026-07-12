@@ -1,50 +1,85 @@
 # Architecture
 
-Inclusive AI Trust Gateway has four layers.
+Inclusive AI Trust Gateway composes two real engines — **Ethic-Latex / ERH** (fairness and ethical-risk evaluation) and **Agentic Defense Matrix / ADM** (agent safety telemetry and containment) — behind one NestJS gateway that exposes the same trust core over seven protocols (REST, WebSocket, tRPC, GraphQL, MQTT, MCP, UCP).
 
 ```mermaid
 flowchart TB
-    A[Public-service AI use case] --> B[Inclusion model]
-    A --> C[Open-data provenance]
-    B --> D[ERH fairness and ethical-risk evaluation]
-    C --> D
-    A --> E[ADM agent safety telemetry]
-    D --> F[Trust assessment dashboard]
-    E --> F
-    F --> G[Mitigation and partner validation plan]
+    subgraph clients["Clients"]
+        WEB[apps/web · Next.js on Vercel]
+        MOB[apps/mobile · Expo RN]
+        AGENT[AI agents · MCP clients]
+        SHOP[Shopping agent · UCP]
+        IOT[Telemetry publishers · MQTT]
+    end
+
+    CF[Cloudflare · DNS / WAF / TLS / rate limits]
+
+    subgraph gw["services/gateway · NestJS (Back4App container)"]
+        REST[REST /v1]
+        WS[WebSocket /ws]
+        TRPC[tRPC /trpc]
+        GQL[GraphQL /graphql]
+        MCP[MCP /mcp]
+        UCP[UCP commerce module]
+        MQ[MQTT transport]
+        CORE[CQRS core · commands / queries<br/>DTO → VO → Entity → ViewModel]
+        REST --> CORE
+        WS --> CORE
+        TRPC --> CORE
+        GQL --> CORE
+        MCP --> CORE
+        UCP --> CORE
+        MQ --> CORE
+    end
+
+    ERH[erh-engine · Python<br/>POST /v1/evaluate · gRPC]
+    ADM[adm-gateway + adm-siem · Go<br/>REST :8080 · gRPC :9090]
+    REDIS[(Redis 7 · cache + pub/sub)]
+    MOSQ[Mosquitto · MQTT broker]
+    PG[(Neon Postgres · Prisma<br/>backup: Supabase)]
+
+    WEB --> CF --> REST
+    WEB -.live feed.-> WS
+    MOB --> CF
+    AGENT --> MCP
+    SHOP --> UCP
+    IOT --> MOSQ --> MQ
+
+    CORE --> ERH
+    CORE <--> ADM
+    CORE --> REDIS
+    CORE --> PG
+    ADM --> REDIS
 ```
 
-## Layer 1: Public-Service Use Case Model
+## Layer 1: Clients
 
-The use case model captures:
+- **apps/web** — Next.js dashboard (trust assessments, live safety feed, UCP commerce trace). Typed calls via tRPC, REST fallback, WebSocket for streaming.
+- **apps/mobile** — Expo React Native, shares the API client from `packages/shared` (ships post-submission).
+- **AI agents** — any MCP client can call `get_assessment`, `evaluate_service`, `list_safety_events`, `check_agent_trust`.
+- **Shopping agent (demo)** — transacts over UCP; every call is trust-gated (Layer 3).
 
-- service domain
-- target users
-- inclusion personas
-- barriers and needs
-- open data sources
-- AI capabilities
-- safeguards
-- SDG mapping
+## Layer 2: Gateway CQRS Core
 
-## Layer 2: ERH Inclusion and Fairness Engine
+One business core, seven thin protocol adapters. Requests enter as **Request DTOs** (class-validator), are dispatched as **Commands/Queries** (`@nestjs/cqrs`), touch domain **Value Objects** and Prisma **Entities**, and exit as **Response DTOs** or UI-shaped **ViewModels**. Cross-cutting concerns are middleware: API-key guard, validation pipes, serialization/logging interceptors, HMAC-signed **webhooks** in and out. **Redis** provides the ERH result cache and the pub/sub event bus that fans ADM events out to WebSocket and MQTT subscribers.
 
-The ERH integration converts service outcomes into samples that can be evaluated for cumulative ethical-error growth. In the MVP, this is represented by local deterministic scoring. In production, this layer should call `erh_engine` through REST or gRPC.
+## Layer 3: Trust Engines (real containers, no stubs)
 
-## Layer 3: ADM Agent Safety Engine
+- **ERH (`erh-engine`)** — service outcomes are converted to ERH `Sample` records; `POST /v1/evaluate` returns fairness / cumulative-error-growth (α) indicators. Circuit breaker falls back to deterministic local scoring (ported from the original MVP into `packages/shared`) only on outage.
+- **ADM (`adm-gateway`, `adm-siem`)** — GHCR images; emits prompt-injection, tool-policy, and containment events into the gateway via webhook (`POST /v1/adm/events`) and MQTT (`adm/events/#`). For the UCP scenario, the gateway registers commerce sessions with ADM so agent drift triggers containment mid-transaction.
 
-The ADM integration receives safety signals from prompt-injection monitoring, tool-call policy enforcement, session containment, and provenance checks. In the MVP, this is represented by static safety signals. In production, this layer should consume ADM telemetry and session state.
+## Layer 4: Data
 
-## Layer 4: Human-Readable Trust Assessment
+Neon Postgres (Prisma; pooled TLS connections) holds use cases, personas, assessments, evidence, safety events, commerce sessions/events, and webhook subscriptions. Migrations, roles, and RLS policies live in `infra/database/`; a Supabase Postgres instance is kept schema-identical as a warm backup (nightly dump-restore; failover = env-var swap).
 
-The gateway produces a concise assessment:
+## Layer 5: Edge & Operations
 
-- inclusion score
-- fairness risk
-- open-data readiness
-- agent-safety readiness
-- known gaps
-- next recommended actions
+Cloudflare fronts everything (DNS, TLS Full-strict, WAF managed rules, per-path rate limits on `/v1/*`, `/graphql`, `/trpc`, `/mcp`). Containers deploy to Back4App (`trust-gateway`, `erh-engine`, `adm-gateway`, `adm-siem`, `mosquitto`, `redis`); the web app deploys to Vercel. The full stack also runs locally from `infra/docker/docker-compose.yml`, which is what the demo video records.
 
-The assessment is meant for public agencies and civic partners, not only technical operators.
+## Trust Assessment Output
 
+The gateway's product is unchanged from the original concept — a human-readable assessment for public agencies and civic partners:
+
+- inclusion score, fairness risk, open-data readiness, agent-safety readiness
+- known gaps and next recommended actions
+- now with live evidence attached: ERH evaluation traces and ADM safety events per assessment.
