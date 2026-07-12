@@ -6,6 +6,27 @@
 
 import type { PublicServiceUseCase } from "./types";
 
+export interface ServiceEndpoints {
+  gateway: string;
+  adm: string;
+  erh: string;
+}
+
+/**
+ * Derives the ADM/ERH proxy URLs from a gateway base URL that points at the
+ * web app's /api/gateway proxy (the Vercel deployment). Direct gateway URLs
+ * (e.g. a Back4App host) have no sibling proxies, so adm/erh stay empty and
+ * callers should use explicit env overrides instead.
+ */
+export function deriveServiceEndpoints(gatewayBaseURL: string): ServiceEndpoints {
+  const base = trim(gatewayBaseURL);
+  if (base.endsWith("/api/gateway")) {
+    const origin = base.slice(0, -"/api/gateway".length);
+    return { gateway: base, adm: `${origin}/api/adm`, erh: `${origin}/api/erh` };
+  }
+  return { gateway: base, adm: "", erh: "" };
+}
+
 export interface EngineProbeResult {
   engine: "adm" | "erh";
   label: string;

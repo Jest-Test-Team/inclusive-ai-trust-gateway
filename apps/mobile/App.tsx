@@ -3,33 +3,50 @@ import { useEffect, useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
   assessUseCase,
+  deriveServiceEndpoints,
   formatScore,
+  probeEngines,
   probeGateway,
   safetySignals,
   sdgPriorities,
   useCases,
+  type EngineProbeResult,
   type GatewayProbeResult,
 } from "@iatg/shared";
 
 const env = ((globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {});
 const apiBaseURL = env.EXPO_PUBLIC_API_BASE_URL ?? env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const apiKey = env.EXPO_PUBLIC_API_KEY ?? env.NEXT_PUBLIC_API_KEY ?? "dev-key";
+// Engine URLs: explicit env override wins; otherwise derived siblings when
+// apiBaseURL points at the web deployment's /api/gateway proxy.
+const derived = deriveServiceEndpoints(apiBaseURL);
+const admBaseURL = env.EXPO_PUBLIC_ADM_API_BASE_URL ?? derived.adm;
+const erhBaseURL = env.EXPO_PUBLIC_ERH_API_BASE_URL ?? derived.erh;
 
 export default function App() {
   const [apiResults, setApiResults] = useState<GatewayProbeResult[]>([]);
+  const [engineResults, setEngineResults] = useState<EngineProbeResult[]>([]);
   const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     if (!apiBaseURL) return;
     let cancelled = false;
     setChecking(true);
-    probeGateway({ baseURL: apiBaseURL, apiKey }, useCases[0])
-      .then((results) => {
+    const probes: Promise<unknown>[] = [
+      probeGateway({ baseURL: apiBaseURL, apiKey }, useCases[0]).then((results) => {
         if (!cancelled) setApiResults(results);
-      })
-      .finally(() => {
-        if (!cancelled) setChecking(false);
-      });
+      }),
+    ];
+    if (admBaseURL || erhBaseURL) {
+      probes.push(
+        probeEngines({ admBaseURL, erhBaseURL }, useCases[0]).then((results) => {
+          if (!cancelled) setEngineResults(results);
+        }),
+      );
+    }
+    Promise.allSettled(probes).finally(() => {
+      if (!cancelled) setChecking(false);
+    });
     return () => {
       cancelled = true;
     };
@@ -42,6 +59,7 @@ export default function App() {
         <Text style={styles.eyebrow}>2026 Presidential Hackathon - International Track</Text>
         <Text style={styles.title}>Inclusive AI Trust Gateway</Text>
         <ApiStatus results={apiResults} checking={checking} />
+        <EngineStatus results={engineResults} />
         <SdgPriorities />
         {useCases.map((useCase) => {
           const assessment = assessUseCase(useCase, safetySignals);
@@ -106,6 +124,22 @@ function ApiStatus({ results, checking }: { results: GatewayProbeResult[]; check
       {checking && results.length === 0 ? <Text style={styles.summary}>Checking gateway APIs...</Text> : null}
       {results.map((result) => (
         <View key={result.surface} style={[styles.apiRow, result.ok ? styles.apiOk : styles.apiFail]}>
+          <Text style={styles.apiLabel}>{result.label}</Text>
+          <Text style={styles.apiValue}>{result.ok ? "Connected" : "Check required"}</Text>
+          <Text style={styles.apiDetail}>{result.detail}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function EngineStatus({ results }: { results: EngineProbeResult[] }) {
+  if (!apiBaseURL || results.length === 0) return null;
+  return (
+    <View style={styles.apiPanel}>
+      <Text style={styles.panelTitle}>Engines (ADM + ERH)</Text>
+      {results.map((result) => (
+        <View key={result.label} style={[styles.apiRow, result.ok ? styles.apiOk : styles.apiFail]}>
           <Text style={styles.apiLabel}>{result.label}</Text>
           <Text style={styles.apiValue}>{result.ok ? "Connected" : "Check required"}</Text>
           <Text style={styles.apiDetail}>{result.detail}</Text>

@@ -38,6 +38,32 @@ Use the `infra/back4app/postgres` app only for a Back4App-only demo stack. The
 current gateway still uses in-memory repositories unless the Postgres repository
 milestone is enabled.
 
+## Frontend env vars (Vercel / Expo / Vite)
+
+The web app reaches every upstream through same-origin proxies
+(`/api/gateway`, `/api/adm`, `/api/erh`), so the browser never needs keys.
+Set on the **Vercel** project:
+
+```env
+GATEWAY_API_BASE_URL=https://<trust-gateway-app>.b4a.run
+GATEWAY_API_KEY=<same key as the gateway app>
+ADM_API_BASE_URL=https://<adm-stack-app>.b4a.run
+ERH_API_BASE_URL=https://<erh-engine-app>.b4a.run
+NEXT_PUBLIC_API_BASE_URL=https://<trust-gateway-app>.b4a.run   # only for the WS live feed URL
+```
+
+Mobile (Expo) and the offline demo (Vite) point at the deployed web app's
+proxies — one URL, engine URLs are derived automatically:
+
+```env
+EXPO_PUBLIC_API_BASE_URL=https://<vercel-app>.vercel.app/api/gateway
+VITE_API_BASE_URL=https://<vercel-app>.vercel.app/api/gateway
+```
+
+(Direct engine URLs can override via `EXPO_PUBLIC_ADM_API_BASE_URL`,
+`EXPO_PUBLIC_ERH_API_BASE_URL`, `VITE_ADM_API_BASE_URL`,
+`VITE_ERH_API_BASE_URL`.)
+
 ## ERH deployment
 
 The ERH engine is vendored into this repository at `services/erh-engine` so
