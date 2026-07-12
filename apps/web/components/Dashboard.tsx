@@ -16,23 +16,84 @@ import {
   type LiveSafetyEvent,
   type PublicServiceUseCase,
 } from "@iatg/shared";
-import { apiBaseURL, apiKey, gateway, liveMode, openLiveFeed } from "../lib/api";
+import { apiBaseURL, apiKey, gateway, gatewayOrigin, liveMode, openLiveFeed } from "../lib/api";
+
+type Locale = "en" | "zh-TW";
+
+const copy = {
+  en: {
+    eyebrow: "2026 Presidential Hackathon - International Track",
+    title: "Inclusive AI Trust Gateway",
+    intro:
+      "A public-service AI evaluation and protection platform that audits fairness, explains risk, and protects AI agents from misuse so governments can deploy AI services safely and inclusively.",
+    scenarios: "Service Scenarios",
+    targetUsers: "Target Users",
+    safeguards: "Safeguards",
+    purposeEyebrow: "What this repo does",
+    purposeTitle: "One trust core for public-service AI",
+    purpose:
+      "The gateway turns policy concerns into testable API evidence: inclusion scoring, fairness-risk checks, open-data readiness, ADM agent-safety telemetry, and trust-gated UCP commerce flows.",
+    apiTitle: "Live Integration Status",
+    swagger: "Swagger",
+    runCheck: "Run API check",
+    sendEvent: "Send ADM event",
+    createAssessment: "Create assessment",
+    erhRole: "Ethic-Latex / ERH Role",
+    admRole: "ADM Safety Role",
+    nextSteps: "Next Build Steps",
+    knownGaps: "Known Gaps",
+    connected: "Connected",
+    checkRequired: "Check required",
+    sdgTitle: "Priority Implementation List",
+  },
+  "zh-TW": {
+    eyebrow: "2026 總統盃黑客松 - 國際組",
+    title: "包容式 AI 信任閘道",
+    intro:
+      "一個面向公共服務的 AI 評估與防護平台，用 API 證據檢查公平性、解釋風險，並保護 AI 代理不被濫用。",
+    scenarios: "服務情境",
+    targetUsers: "目標使用者",
+    safeguards: "防護措施",
+    purposeEyebrow: "這個 repo 能做什麼",
+    purposeTitle: "公共服務 AI 的信任核心",
+    purpose:
+      "此閘道把政策疑慮轉成可測試的 API 證據：包容性分數、公平風險、開放資料準備度、ADM 代理安全事件，以及 UCP 交易信任把關。",
+    apiTitle: "即時 API 整合狀態",
+    swagger: "Swagger 文件",
+    runCheck: "重新檢查 API",
+    sendEvent: "送出 ADM 事件",
+    createAssessment: "建立評估",
+    erhRole: "Ethic-Latex / ERH 角色",
+    admRole: "ADM 安全角色",
+    nextSteps: "下一步建置",
+    knownGaps: "已知缺口",
+    connected: "已連線",
+    checkRequired: "需要檢查",
+    sdgTitle: "優先實作清單",
+  },
+} satisfies Record<Locale, Record<string, string>>;
 
 export function Dashboard() {
   const [selected, setSelected] = useState<PublicServiceUseCase>(useCases[0]);
+  const [locale, setLocale] = useState<Locale>("en");
   const assessment = useMemo(() => assessUseCase(selected, safetySignals), [selected]);
+  const t = copy[locale];
 
   return (
     <>
       <section className="assessment-band">
         <div className="assessment-copy">
-          <p className="eyebrow">2026 Presidential Hackathon - International Track</p>
-          <h1>Inclusive AI Trust Gateway</h1>
-          <p>
-            A public-service AI evaluation and protection platform that audits fairness,
-            explains risk, and protects AI agents from misuse so governments can deploy AI
-            services safely and inclusively.
-          </p>
+          <div className="hero-tools" aria-label="Language">
+            <button className={locale === "en" ? "is-active" : ""} onClick={() => setLocale("en")}>
+              EN
+            </button>
+            <button className={locale === "zh-TW" ? "is-active" : ""} onClick={() => setLocale("zh-TW")}>
+              繁中
+            </button>
+          </div>
+          <p className="eyebrow">{t.eyebrow}</p>
+          <h1>{t.title}</h1>
+          <p>{t.intro}</p>
         </div>
         <div className="metrics-grid">
           <Metric label="Inclusion score" value={formatScore(assessment.inclusionScore)} tone="green" />
@@ -44,7 +105,7 @@ export function Dashboard() {
 
       <section className="workspace">
         <aside className="service-panel">
-          <h2>Service Scenarios</h2>
+          <h2>{t.scenarios}</h2>
           <div className="service-tabs">
             {useCases.map((useCase) => (
               <button
@@ -75,7 +136,7 @@ export function Dashboard() {
 
           <div className="two-column">
             <article>
-              <h3>Target Users</h3>
+              <h3>{t.targetUsers}</h3>
               <ul>
                 {selected.targetUsers.map((user) => (
                   <li key={user}>{user}</li>
@@ -83,7 +144,7 @@ export function Dashboard() {
               </ul>
             </article>
             <article>
-              <h3>Safeguards</h3>
+              <h3>{t.safeguards}</h3>
               <ul>
                 {selected.safeguards.map((safeguard) => (
                   <li key={safeguard}>{safeguard}</li>
@@ -115,14 +176,9 @@ export function Dashboard() {
 
       <section className="purpose-band">
         <div>
-          <p className="eyebrow">What this repo does</p>
-          <h2>One trust core for public-service AI</h2>
-          <p>
-            The gateway turns policy concerns into testable API evidence: inclusion scoring,
-            fairness-risk checks, open-data readiness, ADM agent-safety telemetry, and
-            trust-gated UCP commerce flows. Agencies can use the same core through REST,
-            GraphQL, WebSocket, Connect-RPC, MCP, MQTT, and UCP.
-          </p>
+          <p className="eyebrow">{t.purposeEyebrow}</p>
+          <h2>{t.purposeTitle}</h2>
+          <p>{t.purpose}</p>
         </div>
         <div className="purpose-grid">
           <PurposeCard title="Evaluate services" detail="Create assessments from personas, safeguards, and open-data sources." />
@@ -134,7 +190,7 @@ export function Dashboard() {
 
       <section className="evidence-grid">
         <article>
-          <h2>Ethic-Latex / ERH Role</h2>
+          <h2>{t.erhRole}</h2>
           <p>
             Converts service outcomes into comparable samples, scores fairness and
             ethical-error growth, and surfaces where AI decisions may structurally exclude
@@ -147,11 +203,11 @@ export function Dashboard() {
           </ul>
         </article>
         <article>
-          <h2>ADM Safety Role</h2>
+          <h2>{t.admRole}</h2>
           <SafetyPanel />
         </article>
         <article>
-          <h2>Next Build Steps</h2>
+          <h2>{t.nextSteps}</h2>
           <ul>
             {assessment.nextSteps.map((item) => (
               <li key={item}>{item}</li>
@@ -159,7 +215,7 @@ export function Dashboard() {
           </ul>
         </article>
         <article>
-          <h2>Known Gaps</h2>
+          <h2>{t.knownGaps}</h2>
           <ul>
             {assessment.gaps.map((item) => (
               <li key={item}>{item}</li>
@@ -168,8 +224,8 @@ export function Dashboard() {
         </article>
       </section>
 
-      <SdgPriorityPanel />
-      <ApiSurfacePanel useCase={selected} />
+      <SdgPriorityPanel t={t} />
+      <ApiSurfacePanel useCase={selected} t={t} />
     </>
   );
 }
@@ -245,11 +301,12 @@ function SafetyPanel() {
   );
 }
 
-function ApiSurfacePanel({ useCase }: { useCase: PublicServiceUseCase }) {
+function ApiSurfacePanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Record<string, string> }) {
   const [results, setResults] = useState<GatewayProbeResult[]>([]);
   const [running, setRunning] = useState(false);
+  const [lastAction, setLastAction] = useState("");
 
-  useEffect(() => {
+  const runProbe = () => {
     if (!liveMode) return;
     let cancelled = false;
     setRunning(true);
@@ -263,21 +320,51 @@ function ApiSurfacePanel({ useCase }: { useCase: PublicServiceUseCase }) {
     return () => {
       cancelled = true;
     };
+  };
+
+  useEffect(() => {
+    return runProbe();
   }, [useCase]);
+
+  async function createDemoAssessment() {
+    const created = await gateway.createAssessment(useCase);
+    setLastAction(`Created ${created.id}`);
+    runProbe();
+  }
+
+  async function sendDemoEvent() {
+    const event = await gateway.ingestSafetyEvent({
+      eventType: "prompt_injection",
+      severity: "high",
+      detail: { source: "web-demo", message: "Demo prompt-injection event" },
+    });
+    setLastAction(`Sent ${event.eventType}`);
+    runProbe();
+  }
 
   return (
     <section className="api-band">
       <div className="api-header">
         <div>
           <p className="eyebrow">Gateway APIs</p>
-          <h2>Live Integration Status</h2>
+          <h2>{t.apiTitle}</h2>
         </div>
         {liveMode && (
-          <a href={gateway.docsURL} target="_blank" rel="noreferrer">
-            Swagger
+          <a href={`${gatewayOrigin.replace(/\/+$/, "")}/docs`} target="_blank" rel="noreferrer">
+            {t.swagger}
           </a>
         )}
       </div>
+      {liveMode && (
+        <div className="api-actions">
+          <button onClick={runProbe} disabled={running}>
+            {t.runCheck}
+          </button>
+          <button onClick={createDemoAssessment}>{t.createAssessment}</button>
+          <button onClick={sendDemoEvent}>{t.sendEvent}</button>
+          {lastAction && <span>{lastAction}</span>}
+        </div>
+      )}
 
       {!liveMode ? (
         <p className="api-empty">
@@ -288,7 +375,7 @@ function ApiSurfacePanel({ useCase }: { useCase: PublicServiceUseCase }) {
           {results.map((result) => (
             <article className={`api-card ${result.ok ? "api-ok" : "api-fail"}`} key={result.surface}>
               <span>{result.label}</span>
-              <strong>{result.ok ? "Connected" : "Check required"}</strong>
+              <strong>{result.ok ? t.connected : t.checkRequired}</strong>
               <p>{result.detail}</p>
             </article>
           ))}
@@ -299,7 +386,7 @@ function ApiSurfacePanel({ useCase }: { useCase: PublicServiceUseCase }) {
   );
 }
 
-function SdgPriorityPanel() {
+function SdgPriorityPanel({ t }: { t: Record<string, string> }) {
   const top = sdgPriorities.filter((item) => item.priority === "P0" || item.priority === "P1");
 
   return (
@@ -307,7 +394,7 @@ function SdgPriorityPanel() {
       <div className="sdg-priority-header">
         <div>
           <p className="eyebrow">Corresponding SDGs</p>
-          <h2>Priority Implementation List</h2>
+          <h2>{t.sdgTitle}</h2>
         </div>
         <p>
           P0/P1 goals are directly served by the current gateway. P2/P3 goals are extension

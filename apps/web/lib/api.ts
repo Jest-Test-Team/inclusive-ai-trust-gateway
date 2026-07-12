@@ -3,16 +3,19 @@
 
 import { createGatewayClient } from "@iatg/shared";
 
-export const apiBaseURL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+export const gatewayOrigin = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://aitrustgateway-97n0puz9.b4a.run";
+export const apiBaseURL = "/api/gateway";
 export const apiKey = process.env.NEXT_PUBLIC_API_KEY ?? "dev-key";
-export const liveMode = apiBaseURL !== "";
+export const liveMode = gatewayOrigin !== "";
 
 export const gateway = createGatewayClient({ baseURL: apiBaseURL, apiKey });
 
 /** Opens the gateway's live feed; returns a cleanup function. */
 export function openLiveFeed(onEvent: (channel: string, data: unknown) => void): () => void {
   if (!liveMode) return () => {};
-  const socket = new WebSocket(gateway.websocketURL);
+  const socket = new WebSocket(
+    `${gatewayOrigin.replace(/^http/, "ws").replace(/\/+$/, "")}/ws?api_key=${encodeURIComponent(apiKey)}`,
+  );
   socket.onmessage = (msg) => {
     try {
       const frame = JSON.parse(msg.data as string) as { channel: string; data: unknown };

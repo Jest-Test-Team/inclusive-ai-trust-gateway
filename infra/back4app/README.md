@@ -10,9 +10,9 @@ to separate Back4App apps:
 | `redis` | `infra/back4app/redis` | `6379` | Set gateway `REDIS_URL=redis://<redis-app-host>:6379/0`. |
 | `mosquitto` | `infra/back4app/mosquitto` | `1883` | Set gateway `MQTT_URL=tcp://<mosquitto-app-host>:1883`. |
 | `postgres` | `infra/back4app/postgres` | `5432` | Demo database only. Production should keep using Neon primary + Supabase backup. |
-| `adm-gateway` | `infra/back4app/adm-gateway` | `8080` | Uses `ghcr.io/jest-test-team/adm-gateway:latest`; also exposes gRPC `9090`. |
-| `adm-siem` | `infra/back4app/adm-siem` | `9091` | Uses `ghcr.io/jest-test-team/adm-siem:latest`. |
-| `erh-engine` | `Ethic-Latex` repo root | `8000` | Deploy from the sibling `Ethic-Latex` repository with Dockerfile path `erh_engine/Dockerfile`. |
+| `adm-gateway` | `services/adm-gateway` | `8080` | Uses `ghcr.io/jest-test-team/adm-gateway:latest`; also exposes gRPC `9090`. |
+| `adm-siem` | `services/adm-siem` | `9091` | Uses `ghcr.io/jest-test-team/adm-siem:latest`. |
+| `erh-engine` | `services/erh-engine` | `8000` | Vendored ERH engine and `erh_core` copied into this repo. |
 
 ## Gateway env after deploying dependencies
 
@@ -40,16 +40,12 @@ milestone is enabled.
 
 ## ERH deployment
 
-The ERH Dockerfile lives outside this repository at:
+The ERH engine is vendored into this repository at `services/erh-engine` so
+Back4App can deploy it from the same GitHub repository as the gateway. Create a
+separate Back4App app with:
 
 ```text
-/Users/dennis_leedennis_lee/Documents/GitHub/Ethic-Latex/erh_engine/Dockerfile
+Root directory: services/erh-engine
+Port: 8000
+Env: ERH_MODE=rest
 ```
-
-That Dockerfile requires the `Ethic-Latex` repository root as build context
-because it copies `erh_core/` and `erh_engine/`. Create a separate Back4App app
-connected to the `Ethic-Latex` GitHub repository, set root directory to `./`,
-and set Dockerfile path to `erh_engine/Dockerfile` if the UI exposes that
-field. If the UI only supports root-directory Dockerfile discovery, add a
-root-level `Dockerfile` to the `Ethic-Latex` repository that duplicates
-`erh_engine/Dockerfile`.

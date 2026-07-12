@@ -52,6 +52,30 @@ button {
   max-width: 780px;
 }
 
+.hero-tools {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.hero-tools button {
+  min-width: 52px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #dcefeb;
+  font-weight: 900;
+}
+
+.hero-tools button.is-active {
+  background: #ffffff;
+  color: #174b50;
+}
+
 .assessment-copy h1 {
   margin: 8px 0 16px;
   font-size: clamp(2.4rem, 5vw, 5.8rem);
@@ -466,6 +490,34 @@ li + li {
   color: #ffffff;
   font-weight: 800;
   text-decoration: none;
+}
+
+.api-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.api-actions button {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid #174b50;
+  border-radius: 8px;
+  background: #174b50;
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.api-actions button:disabled {
+  opacity: 0.6;
+}
+
+.api-actions span {
+  color: #405052;
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .api-grid {
