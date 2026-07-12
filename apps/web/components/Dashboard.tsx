@@ -10,6 +10,7 @@ import {
   formatScore,
   probeGateway,
   safetySignals,
+  sdgPriorities,
   useCases,
   type GatewayProbeResult,
   type LiveSafetyEvent,
@@ -112,6 +113,25 @@ export function Dashboard() {
         </section>
       </section>
 
+      <section className="purpose-band">
+        <div>
+          <p className="eyebrow">What this repo does</p>
+          <h2>One trust core for public-service AI</h2>
+          <p>
+            The gateway turns policy concerns into testable API evidence: inclusion scoring,
+            fairness-risk checks, open-data readiness, ADM agent-safety telemetry, and
+            trust-gated UCP commerce flows. Agencies can use the same core through REST,
+            GraphQL, WebSocket, Connect-RPC, MCP, MQTT, and UCP.
+          </p>
+        </div>
+        <div className="purpose-grid">
+          <PurposeCard title="Evaluate services" detail="Create assessments from personas, safeguards, and open-data sources." />
+          <PurposeCard title="Monitor agents" detail="Ingest ADM safety events and stream live evidence to dashboards." />
+          <PurposeCard title="Gate transactions" detail="Block or flag delegated commerce when fairness or containment checks fail." />
+          <PurposeCard title="Share evidence" detail="Expose Swagger, GraphQL, Connect-RPC, and MCP interfaces for partners." />
+        </div>
+      </section>
+
       <section className="evidence-grid">
         <article>
           <h2>Ethic-Latex / ERH Role</h2>
@@ -148,6 +168,7 @@ export function Dashboard() {
         </article>
       </section>
 
+      <SdgPriorityPanel />
       <ApiSurfacePanel useCase={selected} />
     </>
   );
@@ -158,6 +179,15 @@ function Metric({ label, value, tone }: { label: string; value: string; tone: st
     <article className={`metric metric-${tone}`}>
       <span>{label}</span>
       <strong>{value}</strong>
+    </article>
+  );
+}
+
+function PurposeCard({ title, detail }: { title: string; detail: string }) {
+  return (
+    <article className="purpose-card">
+      <strong>{title}</strong>
+      <p>{detail}</p>
     </article>
   );
 }
@@ -265,6 +295,44 @@ function ApiSurfacePanel({ useCase }: { useCase: PublicServiceUseCase }) {
           {running && results.length === 0 && <p className="api-empty">Checking gateway APIs...</p>}
         </div>
       )}
+    </section>
+  );
+}
+
+function SdgPriorityPanel() {
+  const top = sdgPriorities.filter((item) => item.priority === "P0" || item.priority === "P1");
+
+  return (
+    <section className="sdg-band">
+      <div className="sdg-priority-header">
+        <div>
+          <p className="eyebrow">Corresponding SDGs</p>
+          <h2>Priority Implementation List</h2>
+        </div>
+        <p>
+          P0/P1 goals are directly served by the current gateway. P2/P3 goals are extension
+          tracks that reuse the same assessment, open-data, and safety APIs with new domain data.
+        </p>
+      </div>
+      <div className="sdg-priority-grid">
+        {top.map((item) => (
+          <article className={`sdg-priority-card sdg-${item.priority.toLowerCase()}`} key={item.sdg}>
+            <div>
+              <span>{item.priority}</span>
+              <strong>
+                {item.sdg}: {item.name}
+              </strong>
+            </div>
+            <p>{item.repoCanDo}</p>
+            <dl>
+              <dt>Proof</dt>
+              <dd>{item.proofPath}</dd>
+              <dt>Implemented</dt>
+              <dd>{item.implementation.join(", ")}</dd>
+            </dl>
+          </article>
+        ))}
+      </div>
     </section>
   );
 }

@@ -6,6 +6,7 @@ import {
   formatScore,
   probeGateway,
   safetySignals,
+  sdgPriorities,
   useCases,
   type GatewayProbeResult,
 } from "@iatg/shared";
@@ -41,6 +42,7 @@ export default function App() {
         <Text style={styles.eyebrow}>2026 Presidential Hackathon - International Track</Text>
         <Text style={styles.title}>Inclusive AI Trust Gateway</Text>
         <ApiStatus results={apiResults} checking={checking} />
+        <SdgPriorities />
         {useCases.map((useCase) => {
           const assessment = assessUseCase(useCase, safetySignals);
           return (
@@ -58,6 +60,25 @@ export default function App() {
           );
         })}
       </ScrollView>
+    </View>
+  );
+}
+
+function SdgPriorities() {
+  const top = sdgPriorities.filter((item) => item.priority === "P0" || item.priority === "P1");
+
+  return (
+    <View style={styles.apiPanel}>
+      <Text style={styles.panelTitle}>SDG Priority List</Text>
+      {top.map((item) => (
+        <View key={item.sdg} style={styles.sdgRow}>
+          <Text style={styles.apiLabel}>
+            {item.priority} - {item.sdg}
+          </Text>
+          <Text style={styles.apiValue}>{item.name}</Text>
+          <Text style={styles.apiDetail}>{item.repoCanDo}</Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -123,6 +144,7 @@ const styles = StyleSheet.create({
   apiLabel: { fontSize: 11, color: "#4a6367", textTransform: "uppercase", fontWeight: "700" },
   apiValue: { fontSize: 15, color: "#1b2528", fontWeight: "700", marginTop: 3 },
   apiDetail: { fontSize: 12, color: "#3c4a4d", marginTop: 3 },
+  sdgRow: { borderRadius: 10, padding: 12, marginTop: 8, backgroundColor: "#f8fbfa" },
   card: { backgroundColor: "#ffffff", borderRadius: 14, padding: 16, marginBottom: 12 },
   domain: { fontSize: 12, textTransform: "uppercase", color: "#4a6367" },
   cardTitle: { fontSize: 18, fontWeight: "600", color: "#1b2528", marginVertical: 4 },
