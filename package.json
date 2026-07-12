@@ -1,0 +1,26 @@
+{
+  "name": "inclusive-ai-trust-gateway",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "Inclusive AI public-service trust gateway combining fairness auditing and agent safety controls.",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "digital-inclusion",
+    "ai-safety",
+    "public-service",
+    "fairness",
+    "hackathon"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}
+
