@@ -9,20 +9,22 @@ import {
   assessUseCase,
   evaluateWithErh,
   formatScore,
+  getSafetySignals,
+  getSdgPriorities,
+  getUseCases,
+  localizeAssessment,
   probeEngines,
   probeGateway,
   safetySignals,
-  sdgPriorities,
   useCases,
   type EngineProbeResult,
   type ErhEvaluation,
   type GatewayProbeResult,
   type LiveSafetyEvent,
+  type Locale,
   type PublicServiceUseCase,
 } from "@iatg/shared";
 import { apiBaseURL, apiKey, gateway, liveMode, openLiveFeed } from "../lib/api";
-
-type Locale = "en" | "zh-TW";
 
 const copy = {
   en: {
@@ -49,6 +51,25 @@ const copy = {
     connected: "Connected",
     checkRequired: "Check required",
     sdgTitle: "Priority Implementation List",
+    sdgIntro:
+      "P0/P1 goals are directly served by the current gateway. P2/P3 goals are extension tracks that reuse the same assessment, open-data, and safety APIs with new domain data.",
+    proof: "Proof",
+    implemented: "Implemented",
+    needs: "Needs",
+    barriers: "Barriers",
+    metricInclusion: "Inclusion score",
+    metricFairness: "Fairness risk",
+    metricOpenData: "Open data",
+    metricAgentSafety: "Agent safety",
+    erhRoleDetail:
+      "Converts service outcomes into comparable samples, scores fairness and ethical-error growth, and surfaces where AI decisions may structurally exclude vulnerable groups.",
+    admWaiting: "Connected to the gateway - waiting for live ADM events.",
+    purposeCards: [
+      ["Evaluate services", "Create assessments from personas, safeguards, and open-data sources."],
+      ["Monitor agents", "Ingest ADM safety events and stream live evidence to dashboards."],
+      ["Gate transactions", "Block or flag delegated commerce when fairness or containment checks fail."],
+      ["Share evidence", "Expose Swagger, GraphQL, Connect-RPC, and MCP interfaces for partners."],
+    ],
     enginesTitle: "Engine Deployments (Back4App)",
     enginesIntro:
       "The ADM stack and ERH engine run as their own containers; the dashboard reaches them through the /api/adm and /api/erh proxies.",
@@ -81,6 +102,25 @@ const copy = {
     connected: "已連線",
     checkRequired: "需要檢查",
     sdgTitle: "優先實作清單",
+    sdgIntro:
+      "P0/P1 目標由目前的閘道直接支援；P2/P3 是延伸方向，沿用同一套評估、開放資料與安全 API，只需帶入新的領域資料。",
+    proof: "佐證",
+    implemented: "已實作",
+    needs: "需求",
+    barriers: "障礙",
+    metricInclusion: "包容性分數",
+    metricFairness: "公平風險",
+    metricOpenData: "開放資料",
+    metricAgentSafety: "代理安全",
+    erhRoleDetail:
+      "將服務結果轉為可比較的樣本，評估公平性與倫理誤差成長，並指出 AI 決策可能在結構上排除弱勢族群之處。",
+    admWaiting: "已連線至閘道，等待即時 ADM 事件。",
+    purposeCards: [
+      ["評估服務", "由人物誌、防護措施與開放資料來源建立信任評估。"],
+      ["監測代理", "接收 ADM 安全事件並將即時證據串流到儀表板。"],
+      ["交易把關", "當公平性或圍堵檢查未通過時，阻擋或標記代理代購。"],
+      ["共享證據", "對夥伴提供 Swagger、GraphQL、Connect-RPC 與 MCP 介面。"],
+    ],
     enginesTitle: "引擎部署狀態（Back4App）",
     enginesIntro: "ADM 與 ERH 引擎各自以容器部署；儀表板透過 /api/adm 與 /api/erh 代理連線。",
     runErh: "執行 ERH 公平性評估",
@@ -88,12 +128,21 @@ const copy = {
     erhHealthy: "在 ERH 健康界線內",
     erhUnhealthy: "偵測到結構性錯誤成長",
   },
-} satisfies Record<Locale, Record<string, string>>;
+} satisfies Record<Locale, Record<string, string | string[][]>>;
+
+type Copy = (typeof copy)["en"];
 
 export function Dashboard() {
-  const [selected, setSelected] = useState<PublicServiceUseCase>(useCases[0]);
+  const [selectedId, setSelectedId] = useState<string>(useCases[0].id);
   const [locale, setLocale] = useState<Locale>("en");
-  const assessment = useMemo(() => assessUseCase(selected, safetySignals), [selected]);
+  const localUseCases = getUseCases(locale);
+  const selected = localUseCases.find((useCase) => useCase.id === selectedId) ?? localUseCases[0];
+  // Scores are locale-independent (they count structure, not words), but the
+  // generated strength/gap strings are localized for display.
+  const assessment = useMemo(
+    () => localizeAssessment(assessUseCase(selected, safetySignals), locale),
+    [selected, locale],
+  );
   const t = copy[locale];
 
   return (
@@ -113,10 +162,10 @@ export function Dashboard() {
           <p>{t.intro}</p>
         </div>
         <div className="metrics-grid">
-          <Metric label="Inclusion score" value={formatScore(assessment.inclusionScore)} tone="green" />
-          <Metric label="Fairness risk" value={assessment.fairnessRisk} tone="amber" />
-          <Metric label="Open data" value={formatScore(assessment.openDataReadiness)} tone="blue" />
-          <Metric label="Agent safety" value={formatScore(assessment.agentSafetyReadiness)} tone="red" />
+          <Metric label={t.metricInclusion} value={formatScore(assessment.inclusionScore)} tone="green" />
+          <Metric label={t.metricFairness} value={assessment.fairnessRisk} tone="amber" />
+          <Metric label={t.metricOpenData} value={formatScore(assessment.openDataReadiness)} tone="blue" />
+          <Metric label={t.metricAgentSafety} value={formatScore(assessment.agentSafetyReadiness)} tone="red" />
         </div>
       </section>
 
@@ -124,11 +173,11 @@ export function Dashboard() {
         <aside className="service-panel">
           <h2>{t.scenarios}</h2>
           <div className="service-tabs">
-            {useCases.map((useCase) => (
+            {localUseCases.map((useCase) => (
               <button
                 key={useCase.id}
                 className={`service-tab ${useCase.id === selected.id ? "is-active" : ""}`}
-                onClick={() => setSelected(useCase)}
+                onClick={() => setSelectedId(useCase.id)}
               >
                 <span>{useCase.domain}</span>
                 {useCase.name}
@@ -180,9 +229,9 @@ export function Dashboard() {
                   </p>
                 </div>
                 <dl>
-                  <dt>Needs</dt>
+                  <dt>{t.needs}</dt>
                   <dd>{persona.needs.join(", ")}</dd>
-                  <dt>Barriers</dt>
+                  <dt>{t.barriers}</dt>
                   <dd>{persona.barriers.join(", ")}</dd>
                 </dl>
               </article>
@@ -198,21 +247,16 @@ export function Dashboard() {
           <p>{t.purpose}</p>
         </div>
         <div className="purpose-grid">
-          <PurposeCard title="Evaluate services" detail="Create assessments from personas, safeguards, and open-data sources." />
-          <PurposeCard title="Monitor agents" detail="Ingest ADM safety events and stream live evidence to dashboards." />
-          <PurposeCard title="Gate transactions" detail="Block or flag delegated commerce when fairness or containment checks fail." />
-          <PurposeCard title="Share evidence" detail="Expose Swagger, GraphQL, Connect-RPC, and MCP interfaces for partners." />
+          {t.purposeCards.map(([title, detail]) => (
+            <PurposeCard key={title} title={title} detail={detail} />
+          ))}
         </div>
       </section>
 
       <section className="evidence-grid">
         <article>
           <h2>{t.erhRole}</h2>
-          <p>
-            Converts service outcomes into comparable samples, scores fairness and
-            ethical-error growth, and surfaces where AI decisions may structurally exclude
-            vulnerable groups.
-          </p>
+          <p>{t.erhRoleDetail}</p>
           <ul>
             {assessment.strengths.map((item) => (
               <li key={item}>{item}</li>
@@ -221,7 +265,7 @@ export function Dashboard() {
         </article>
         <article>
           <h2>{t.admRole}</h2>
-          <SafetyPanel />
+          <SafetyPanel locale={locale} t={t} />
         </article>
         <article>
           <h2>{t.nextSteps}</h2>
@@ -241,7 +285,7 @@ export function Dashboard() {
         </article>
       </section>
 
-      <SdgPriorityPanel t={t} />
+      <SdgPriorityPanel locale={locale} t={t} />
       <ApiSurfacePanel useCase={selected} t={t} />
       <EnginesPanel useCase={selected} t={t} />
     </>
@@ -270,7 +314,7 @@ function PurposeCard({ title, detail }: { title: string; detail: string }) {
  * Offline mode lists the static ADM control inventory; live mode streams
  * safety events from the gateway WebSocket.
  */
-function SafetyPanel() {
+function SafetyPanel({ locale, t }: { locale: Locale; t: Copy }) {
   const [events, setEvents] = useState<LiveSafetyEvent[]>([]);
 
   useEffect(() => {
@@ -284,7 +328,7 @@ function SafetyPanel() {
   if (!liveMode) {
     return (
       <div className="signal-list">
-        {safetySignals.map((signal) => (
+        {getSafetySignals(locale).map((signal) => (
           <article className="signal-row" key={signal.control}>
             <span className={`status-dot status-${signal.status}`} aria-label={signal.status} />
             <div>
@@ -299,7 +343,7 @@ function SafetyPanel() {
 
   return (
     <div className="signal-list" aria-live="polite">
-      {events.length === 0 && <p>Connected to the gateway - waiting for live ADM events.</p>}
+      {events.length === 0 && <p>{t.admWaiting}</p>}
       {events.map((event) => (
         <article className="signal-row" key={event.id}>
           <span
@@ -319,7 +363,7 @@ function SafetyPanel() {
   );
 }
 
-function ApiSurfacePanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Record<string, string> }) {
+function ApiSurfacePanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Copy }) {
   const [results, setResults] = useState<GatewayProbeResult[]>([]);
   const [running, setRunning] = useState(false);
   const [lastAction, setLastAction] = useState("");
@@ -410,7 +454,7 @@ function ApiSurfacePanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Rec
  * through the same-origin /api/adm and /api/erh proxies, so it works even
  * before the trust gateway itself is deployed.
  */
-function EnginesPanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Record<string, string> }) {
+function EnginesPanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Copy }) {
   const [results, setResults] = useState<EngineProbeResult[]>([]);
   const [evaluation, setEvaluation] = useState<ErhEvaluation | null>(null);
   const [busy, setBusy] = useState(false);
@@ -479,8 +523,8 @@ function EnginesPanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Record
   );
 }
 
-function SdgPriorityPanel({ t }: { t: Record<string, string> }) {
-  const top = sdgPriorities.filter((item) => item.priority === "P0" || item.priority === "P1");
+function SdgPriorityPanel({ locale, t }: { locale: Locale; t: Copy }) {
+  const top = getSdgPriorities(locale).filter((item) => item.priority === "P0" || item.priority === "P1");
 
   return (
     <section className="sdg-band">
@@ -489,10 +533,7 @@ function SdgPriorityPanel({ t }: { t: Record<string, string> }) {
           <p className="eyebrow">Corresponding SDGs</p>
           <h2>{t.sdgTitle}</h2>
         </div>
-        <p>
-          P0/P1 goals are directly served by the current gateway. P2/P3 goals are extension
-          tracks that reuse the same assessment, open-data, and safety APIs with new domain data.
-        </p>
+        <p>{t.sdgIntro}</p>
       </div>
       <div className="sdg-priority-grid">
         {top.map((item) => (
@@ -505,9 +546,9 @@ function SdgPriorityPanel({ t }: { t: Record<string, string> }) {
             </div>
             <p>{item.repoCanDo}</p>
             <dl>
-              <dt>Proof</dt>
+              <dt>{t.proof}</dt>
               <dd>{item.proofPath}</dd>
-              <dt>Implemented</dt>
+              <dt>{t.implemented}</dt>
               <dd>{item.implementation.join(", ")}</dd>
             </dl>
           </article>

@@ -53,17 +53,29 @@ export function createProxyHandler(options: ProxyOptions) {
       );
     }
 
+    const body = req.method === "GET" || req.method === "HEAD" ? undefined : JSON.stringify(req.body ?? {});
+
+    // Follow redirects manually so the method and body survive: default
+    // fetch semantics convert POST into GET on 301/302, which turned every
+    // POST surface (GraphQL, UCP, Connect-RPC, MCP) into 405s upstream.
     let response: Response;
+    let hop = new URL(target);
     try {
-      response = await fetch(target, {
-        method: req.method,
-        headers,
-        body: req.method === "GET" || req.method === "HEAD" ? undefined : JSON.stringify(req.body ?? {}),
-        cache: "no-store",
-      });
+      for (let i = 0; ; i++) {
+        response = await fetch(hop, {
+          method: req.method,
+          headers,
+          body,
+          cache: "no-store",
+          redirect: "manual",
+        });
+        const location = response.headers.get("location");
+        if (i >= 3 || !location || ![301, 302, 307, 308].includes(response.status)) break;
+        hop = new URL(location, hop);
+      }
     } catch (error) {
       res.status(502).json({
-        error: `upstream unreachable: ${target.origin}`,
+        error: `upstream unreachable: ${hop.origin}`,
         detail: error instanceof Error ? error.message : String(error),
       });
       return;
