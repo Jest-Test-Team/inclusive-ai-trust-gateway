@@ -9,3 +9,5 @@ coverage/
 #hint.txt
 tests/results/
 .venv/
+.turbo/
+.next/

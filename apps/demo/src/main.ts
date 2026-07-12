@@ -1,6 +1,5 @@
-import { assessUseCase, formatScore } from "./app/scoring";
-import { safetySignals, useCases } from "./app/sampleData";
-import type { PublicServiceUseCase, TrustAssessment } from "./app/types";
+import { assessUseCase, formatScore, safetySignals, useCases } from "@iatg/shared";
+import type { PublicServiceUseCase, TrustAssessment } from "@iatg/shared";
 import "./styles.css";
 
 const app = document.querySelector<HTMLElement>("#app");
