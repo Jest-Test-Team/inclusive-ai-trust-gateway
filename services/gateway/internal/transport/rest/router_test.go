@@ -3,8 +3,10 @@ package rest
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/app"
@@ -58,9 +60,9 @@ func decode(t *testing.T, resp *http.Response) map[string]any {
 
 var sampleUseCase = map[string]any{
 	"useCase": map[string]any{
-		"name":        "Care navigation assistant",
-		"domain":      "care-services",
-		"description": "AI assistant helping residents find eligible care services",
+		"name":            "Care navigation assistant",
+		"domain":          "care-services",
+		"description":     "AI assistant helping residents find eligible care services",
 		"openDataSources": []string{"care directories"},
 		"safeguards":      []string{"human review"},
 		"personas": []map[string]any{
@@ -92,6 +94,62 @@ func TestUnknownRouteIs404(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestOpenAPIDocs(t *testing.T) {
+	srv := newTestServer(t)
+	resp, err := http.Get(srv.URL + "/openapi.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.Contains(ct, "application/json") {
+		t.Fatalf("content-type = %q", ct)
+	}
+	var spec map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&spec); err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if spec["openapi"] != "3.0.3" {
+		t.Fatalf("openapi = %v", spec["openapi"])
+	}
+
+	docs, err := http.Get(srv.URL + "/docs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer docs.Body.Close()
+	body, _ := io.ReadAll(docs.Body)
+	if docs.StatusCode != http.StatusOK || !strings.Contains(string(body), "SwaggerUIBundle") {
+		t.Fatalf("docs status = %d, body = %s", docs.StatusCode, string(body))
+	}
+}
+
+func TestCORSPreflight(t *testing.T) {
+	srv := newTestServer(t)
+	req, err := http.NewRequest(http.MethodOptions, srv.URL+"/v1/assessments", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Origin", "https://example.vercel.app")
+	req.Header.Set("Access-Control-Request-Headers", "X-Api-Key, Content-Type")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204", resp.StatusCode)
+	}
+	if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "https://example.vercel.app" {
+		t.Fatalf("allow-origin = %q", got)
+	}
+	if got := resp.Header.Get("Access-Control-Allow-Headers"); !strings.Contains(got, "X-Api-Key") {
+		t.Fatalf("allow-headers = %q", got)
 	}
 }
 

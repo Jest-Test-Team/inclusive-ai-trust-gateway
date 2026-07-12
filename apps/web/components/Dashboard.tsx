@@ -8,11 +8,14 @@ import { useEffect, useMemo, useState } from "react";
 import {
   assessUseCase,
   formatScore,
+  probeGateway,
   safetySignals,
   useCases,
+  type GatewayProbeResult,
+  type LiveSafetyEvent,
   type PublicServiceUseCase,
 } from "@iatg/shared";
-import { liveMode, openLiveFeed, type LiveSafetyEvent } from "../lib/api";
+import { apiBaseURL, apiKey, gateway, liveMode, openLiveFeed } from "../lib/api";
 
 export function Dashboard() {
   const [selected, setSelected] = useState<PublicServiceUseCase>(useCases[0]);
@@ -144,6 +147,8 @@ export function Dashboard() {
           </ul>
         </article>
       </section>
+
+      <ApiSurfacePanel useCase={selected} />
     </>
   );
 }
@@ -207,5 +212,59 @@ function SafetyPanel() {
         </article>
       ))}
     </div>
+  );
+}
+
+function ApiSurfacePanel({ useCase }: { useCase: PublicServiceUseCase }) {
+  const [results, setResults] = useState<GatewayProbeResult[]>([]);
+  const [running, setRunning] = useState(false);
+
+  useEffect(() => {
+    if (!liveMode) return;
+    let cancelled = false;
+    setRunning(true);
+    probeGateway({ baseURL: apiBaseURL, apiKey }, useCase)
+      .then((next) => {
+        if (!cancelled) setResults(next);
+      })
+      .finally(() => {
+        if (!cancelled) setRunning(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [useCase]);
+
+  return (
+    <section className="api-band">
+      <div className="api-header">
+        <div>
+          <p className="eyebrow">Gateway APIs</p>
+          <h2>Live Integration Status</h2>
+        </div>
+        {liveMode && (
+          <a href={gateway.docsURL} target="_blank" rel="noreferrer">
+            Swagger
+          </a>
+        )}
+      </div>
+
+      {!liveMode ? (
+        <p className="api-empty">
+          Offline demo mode. Set NEXT_PUBLIC_API_BASE_URL and NEXT_PUBLIC_API_KEY in Vercel to use the gateway APIs.
+        </p>
+      ) : (
+        <div className="api-grid" aria-live="polite">
+          {results.map((result) => (
+            <article className={`api-card ${result.ok ? "api-ok" : "api-fail"}`} key={result.surface}>
+              <span>{result.label}</span>
+              <strong>{result.ok ? "Connected" : "Check required"}</strong>
+              <p>{result.detail}</p>
+            </article>
+          ))}
+          {running && results.length === 0 && <p className="api-empty">Checking gateway APIs...</p>}
+        </div>
+      )}
+    </section>
   );
 }

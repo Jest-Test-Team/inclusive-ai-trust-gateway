@@ -56,10 +56,14 @@ func NewServer(bus *cqrs.Bus, apiKey string) *Server {
 func (s *Server) Router() http.Handler {
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID, chimw.RealIP, chimw.Logger, chimw.Recoverer)
+	r.Use(middleware.CORS)
 
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
+	r.Get("/openapi.json", s.openAPI)
+	r.Get("/docs", s.swaggerUI)
+	r.Get("/swagger", s.swaggerUI)
 
 	r.Route("/v1", func(v1 chi.Router) {
 		v1.Use(middleware.APIKey(s.apiKey))
