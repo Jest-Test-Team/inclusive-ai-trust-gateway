@@ -58,24 +58,30 @@ type Evaluator interface {
 
 // --- erh-engine HTTP client ---
 
-// engineSample mirrors erh_engine's Sample contract: each persona/outcome
-// pair becomes a sample the engine scores for cumulative ethical error.
+// engineSample mirrors erh_engine's canonical Sample contract
+// (services/erh-engine/erh_engine/contracts/schemas.py): complexity x,
+// true value V(a), system judgment J(a), weight w(a).
 type engineSample struct {
 	ID         string         `json:"id"`
-	Context    string         `json:"context"`
-	Attributes map[string]any `json:"attributes"`
+	Complexity float64        `json:"complexity"`
+	Value      float64        `json:"value"`
+	Judgment   float64        `json:"judgment"`
+	Weight     float64        `json:"weight"`
+	Context    map[string]any `json:"context,omitempty"`
 }
 
 type engineRequest struct {
-	Samples []engineSample `json:"samples"`
+	Samples   []engineSample `json:"samples"`
+	JudgeName string         `json:"judge_name"`
 }
 
+// engineResponse mirrors erh_engine's EvaluateResponse (subset we consume).
 type engineResponse struct {
-	InclusionScore       *int    `json:"inclusion_score"`
-	FairnessRisk         *int    `json:"fairness_risk"`
-	OpenDataReadiness    *int    `json:"open_data_readiness"`
-	AgentSafetyReadiness *int    `json:"agent_safety_readiness"`
-	Alpha                float64 `json:"alpha"`
+	ErhSatisfied      bool    `json:"erh_satisfied"`
+	RiskScore         float64 `json:"risk_score"` // 0-100, higher = unhealthier
+	EstimatedExponent float64 `json:"estimated_exponent"`
+	NumSamples        int     `json:"num_samples"`
+	NumPrimes         int     `json:"num_primes"`
 }
 
 type EngineClient struct {
@@ -88,21 +94,7 @@ func NewEngineClient(baseURL string, timeout time.Duration) *EngineClient {
 }
 
 func (c *EngineClient) Evaluate(ctx context.Context, uc UseCase, signals []SafetySignal) (Result, error) {
-	samples := make([]engineSample, 0, len(uc.Personas))
-	for i, p := range uc.Personas {
-		samples = append(samples, engineSample{
-			ID:      fmt.Sprintf("%s-%d", uc.Name, i),
-			Context: uc.Summary,
-			Attributes: map[string]any{
-				"persona":  p.Label,
-				"ageGroup": p.AgeGroup,
-				"region":   p.Region,
-				"needs":    p.Needs,
-				"barriers": p.Barriers,
-			},
-		})
-	}
-	body, err := json.Marshal(engineRequest{Samples: samples})
+	body, err := json.Marshal(engineRequest{Samples: ToEngineSamples(uc), JudgeName: uc.Name})
 	if err != nil {
 		return Result{}, err
 	}
@@ -124,22 +116,64 @@ func (c *EngineClient) Evaluate(ctx context.Context, uc UseCase, signals []Safet
 		return Result{}, err
 	}
 
-	// The engine owns fairness; readiness dimensions it does not score are
-	// filled from the deterministic model so the result is always complete.
-	det := Fallback{}.score(uc, signals)
-	res := det
+	// The engine owns fairness risk; the readiness dimensions it does not
+	// score come from the deterministic model so results stay complete.
+	res := Fallback{}.score(uc, signals)
 	res.Evaluator = "erh-engine"
-	if er.InclusionScore != nil {
-		res.InclusionScore = *er.InclusionScore
-	}
-	if er.FairnessRisk != nil {
-		res.FairnessRiskScore = *er.FairnessRisk
-	}
-	if er.OpenDataReadiness != nil {
-		res.OpenDataReadiness = *er.OpenDataReadiness
-	}
-	if er.AgentSafetyReadiness != nil {
-		res.AgentSafetyReadiness = *er.AgentSafetyReadiness
+	res.FairnessRiskScore = clampRisk(er.RiskScore)
+	switch {
+	case er.ErhSatisfied && res.FairnessRiskScore <= 33:
+		res.FairnessRiskLabel = "Low"
+	case res.FairnessRiskScore <= 66:
+		res.FairnessRiskLabel = "Medium"
+	default:
+		res.FairnessRiskLabel = "High"
 	}
 	return res, nil
+}
+
+// ToEngineSamples converts a use case into ERH decision samples: each
+// persona is one decision, where complexity grows with barrier count, the
+// true value is full service (1.0), and the judged quality degrades with
+// unmitigated barriers and recovers with safeguards.
+func ToEngineSamples(uc UseCase) []engineSample {
+	if len(uc.Personas) == 0 {
+		return []engineSample{{
+			ID: "use-case", Complexity: 1, Value: 1, Judgment: 0.8, Weight: 1,
+			Context: map[string]any{"name": uc.Name, "domain": uc.Domain},
+		}}
+	}
+	samples := make([]engineSample, 0, len(uc.Personas))
+	for i, p := range uc.Personas {
+		judgment := 1.0 - 0.3*float64(len(p.Barriers)) + 0.1*float64(len(uc.Safeguards))
+		if judgment > 1 {
+			judgment = 1
+		}
+		if judgment < -1 {
+			judgment = -1
+		}
+		samples = append(samples, engineSample{
+			ID:         fmt.Sprintf("persona-%d", i),
+			Complexity: 1 + float64(len(p.Barriers)),
+			Value:      1,
+			Judgment:   judgment,
+			Weight:     1,
+			Context: map[string]any{
+				"persona": p.Label, "ageGroup": p.AgeGroup, "region": p.Region,
+				"barriers": p.Barriers,
+			},
+		})
+	}
+	return samples
+}
+
+func clampRisk(v float64) int {
+	r := int(v + 0.5)
+	if r < 0 {
+		return 0
+	}
+	if r > 100 {
+		return 100
+	}
+	return r
 }
