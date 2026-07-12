@@ -4,6 +4,7 @@
 package app
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/adm"
@@ -14,6 +15,7 @@ import (
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/platform/config"
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/platform/cqrs"
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/platform/eventbus"
+	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/platform/postgres"
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/platform/webhooks"
 )
 
@@ -43,8 +45,26 @@ func New(cfg config.Config) *App {
 	}
 
 	hooks := webhooks.NewDispatcher(cfg.WebhookSecret)
-	repo := assessments.NewMemoryRepository()
-	store := adm.NewMemoryStore()
+
+	// Persistence: Postgres (Neon in prod) when DATABASE_URL is set, with a
+	// hard fallback to memory so the demo never dies with the database.
+	var repo assessments.Repository = assessments.NewMemoryRepository()
+	var store adm.Store = adm.NewMemoryStore()
+	if cfg.DatabaseURL != "" {
+		ctx := context.Background()
+		if pool, err := postgres.Connect(ctx, cfg.DatabaseURL); err != nil {
+			slog.Warn("postgres unavailable, using in-memory repositories", "err", err)
+		} else {
+			if cfg.AutoMigrate {
+				if err := postgres.Migrate(ctx, pool); err != nil {
+					slog.Error("postgres migrations failed", "err", err)
+				}
+			}
+			repo = assessments.NewPostgresRepository(pool)
+			store = adm.NewPostgresStore(pool)
+			slog.Info("postgres repositories active")
+		}
+	}
 
 	bus := cqrs.NewBus()
 	cqrs.Register[commands.CreateAssessment, assessments.Assessment](bus, commands.CreateAssessmentHandler{

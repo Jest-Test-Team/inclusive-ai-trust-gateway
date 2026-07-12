@@ -11,6 +11,8 @@ type Config struct {
 	APIKey        string        // GATEWAY_API_KEY — agency auth for /v1
 	ERHServiceURL string        // ERH_SERVICE_URL — erh-engine base URL, empty = fallback scoring only
 	RedisURL      string        // REDIS_URL — empty = in-process event bus
+	DatabaseURL   string        // DATABASE_URL — empty = in-memory repositories
+	AutoMigrate   bool          // AUTO_MIGRATE — apply embedded migrations on boot (default true)
 	WebhookSecret string        // WEBHOOK_SECRET — HMAC key for outbound webhooks
 	ERHTimeout    time.Duration // ERH_TIMEOUT
 }
@@ -21,6 +23,8 @@ func Load() Config {
 		APIKey:        getenv("GATEWAY_API_KEY", "dev-key"),
 		ERHServiceURL: os.Getenv("ERH_SERVICE_URL"),
 		RedisURL:      os.Getenv("REDIS_URL"),
+		DatabaseURL:   os.Getenv("DATABASE_URL"),
+		AutoMigrate:   getenv("AUTO_MIGRATE", "1") != "0",
 		WebhookSecret: getenv("WEBHOOK_SECRET", "dev-webhook-secret"),
 		ERHTimeout:    getDuration("ERH_TIMEOUT", 5*time.Second),
 	}

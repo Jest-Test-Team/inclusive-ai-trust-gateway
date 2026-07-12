@@ -28,15 +28,17 @@ MQTT_URL=tcp://<mosquitto-app-host>:1883
 CORS_ALLOWED_ORIGINS=https://<vercel-frontend>.vercel.app,http://localhost:3000
 ```
 
-For database-backed milestones, prefer:
+For persistent storage (Neon), add:
 
 ```env
-DATABASE_URL=<Neon pooled connection string>
+DATABASE_URL=<Neon pooled connection string, sslmode=require>
 ```
 
-Use the `infra/back4app/postgres` app only for a Back4App-only demo stack. The
-current gateway still uses in-memory repositories unless the Postgres repository
-milestone is enabled.
+With `DATABASE_URL` set the gateway self-migrates on boot (idempotent;
+disable with `AUTO_MIGRATE=0`) and stores assessments, personas, open-data
+sources, and ADM safety events in Postgres. Without it, in-memory
+repositories are used and data resets on restart. Use the
+`infra/back4app/postgres` app only for a Back4App-only demo stack.
 
 ## Frontend env vars (Vercel / Expo / Vite)
 

@@ -25,10 +25,13 @@ infra/database/
   the dual-target (Neon + Supabase) apply stay safe.
 - Roles are `NOLOGIN` group roles; the actual login users granted into them
   are provider-managed and password-set out of band.
-- The gateway currently persists through in-memory repositories
-  (`services/gateway/internal/assessments/repository.go`); the Postgres
-  repository implementation binds to this schema and is the next gateway
-  milestone (plan §10 row F).
+- The gateway persists to this schema when `DATABASE_URL` is set (pgx
+  repositories in `services/gateway/internal/assessments/postgres_repository.go`
+  and `internal/adm/postgres_store.go`); without it, in-memory repositories
+  keep the demo alive. On boot the gateway applies an **embedded copy** of
+  these migrations (`services/gateway/internal/platform/postgres/migrations/`,
+  disable with `AUTO_MIGRATE=0`) — when adding a migration here, copy it
+  there too; this directory stays canonical.
 
 ## Security model
 
