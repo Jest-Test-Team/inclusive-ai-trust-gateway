@@ -7,11 +7,15 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   assessUseCase,
+  evaluateWithErh,
   formatScore,
+  probeEngines,
   probeGateway,
   safetySignals,
   sdgPriorities,
   useCases,
+  type EngineProbeResult,
+  type ErhEvaluation,
   type GatewayProbeResult,
   type LiveSafetyEvent,
   type PublicServiceUseCase,
@@ -45,6 +49,13 @@ const copy = {
     connected: "Connected",
     checkRequired: "Check required",
     sdgTitle: "Priority Implementation List",
+    enginesTitle: "Engine Deployments (Back4App)",
+    enginesIntro:
+      "The ADM stack and ERH engine run as their own containers; the dashboard reaches them through the /api/adm and /api/erh proxies.",
+    runErh: "Run ERH fairness evaluation",
+    erhResult: "ERH verdict for this scenario",
+    erhHealthy: "within the ERH bound",
+    erhUnhealthy: "structural error growth detected",
   },
   "zh-TW": {
     eyebrow: "2026 總統盃黑客松 - 國際組",
@@ -70,6 +81,12 @@ const copy = {
     connected: "已連線",
     checkRequired: "需要檢查",
     sdgTitle: "優先實作清單",
+    enginesTitle: "引擎部署狀態（Back4App）",
+    enginesIntro: "ADM 與 ERH 引擎各自以容器部署；儀表板透過 /api/adm 與 /api/erh 代理連線。",
+    runErh: "執行 ERH 公平性評估",
+    erhResult: "此情境的 ERH 評估結果",
+    erhHealthy: "在 ERH 健康界線內",
+    erhUnhealthy: "偵測到結構性錯誤成長",
   },
 } satisfies Record<Locale, Record<string, string>>;
 
@@ -226,6 +243,7 @@ export function Dashboard() {
 
       <SdgPriorityPanel t={t} />
       <ApiSurfacePanel useCase={selected} t={t} />
+      <EnginesPanel useCase={selected} t={t} />
     </>
   );
 }
@@ -382,6 +400,81 @@ function ApiSurfacePanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Rec
           {running && results.length === 0 && <p className="api-empty">Checking gateway APIs...</p>}
         </div>
       )}
+    </section>
+  );
+}
+
+/**
+ * Live status of the two engine containers (ADM stack, ERH engine) plus an
+ * interactive ERH evaluation of the selected scenario. Reaches the engines
+ * through the same-origin /api/adm and /api/erh proxies, so it works even
+ * before the trust gateway itself is deployed.
+ */
+function EnginesPanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Record<string, string> }) {
+  const [results, setResults] = useState<EngineProbeResult[]>([]);
+  const [evaluation, setEvaluation] = useState<ErhEvaluation | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    probeEngines({ admBaseURL: "/api/adm", erhBaseURL: "/api/erh" }, useCase).then((next) => {
+      if (!cancelled) setResults(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [useCase]);
+
+  async function runErh() {
+    setBusy(true);
+    setError("");
+    try {
+      setEvaluation(await evaluateWithErh("/api/erh", useCase));
+    } catch (err) {
+      setEvaluation(null);
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="api-band">
+      <div className="api-header">
+        <div>
+          <p className="eyebrow">ADM + ERH</p>
+          <h2>{t.enginesTitle}</h2>
+        </div>
+      </div>
+      <p className="api-empty">{t.enginesIntro}</p>
+      <div className="api-actions">
+        <button onClick={runErh} disabled={busy}>
+          {t.runErh}
+        </button>
+        {error && <span>{error}</span>}
+      </div>
+      <div className="api-grid" aria-live="polite">
+        {results.map((result) => (
+          <article className={`api-card ${result.ok ? "api-ok" : "api-fail"}`} key={result.label}>
+            <span>{result.label}</span>
+            <strong>{result.ok ? t.connected : t.checkRequired}</strong>
+            <p>{result.detail}</p>
+          </article>
+        ))}
+        {evaluation && (
+          <article className={`api-card ${evaluation.erh_satisfied ? "api-ok" : "api-fail"}`}>
+            <span>{t.erhResult}</span>
+            <strong>
+              {Math.round(evaluation.risk_score)}/100 · α {evaluation.estimated_exponent.toFixed(2)}
+            </strong>
+            <p>
+              {evaluation.erh_satisfied ? t.erhHealthy : t.erhUnhealthy} ({evaluation.num_primes} critical of{" "}
+              {evaluation.num_samples} samples)
+            </p>
+          </article>
+        )}
+      </div>
     </section>
   );
 }
