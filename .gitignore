@@ -7,3 +7,5 @@ coverage/
 *.log
 
 #hint.txt
+tests/results/
+.venv/
