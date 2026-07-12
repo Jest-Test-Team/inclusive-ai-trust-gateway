@@ -12,4 +12,5 @@ tests/results/
 .turbo/
 .next/
 
-hint.txt*.tsbuildinfo
+#hint.txt
+*.tsbuildinfo
