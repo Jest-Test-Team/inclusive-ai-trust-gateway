@@ -1,0 +1,112 @@
+# Full local stack for the Inclusive AI Trust Gateway.
+#
+#   docker compose -f infra/docker/docker-compose.yml up --build
+#
+# The ADM engine services are behind the "adm" profile because their images
+# expect the full ADM exercise environment (LLM backend etc.); enable with:
+#
+#   docker compose -f infra/docker/docker-compose.yml --profile adm up
+#
+# ERH_CONTEXT overrides the sibling-checkout build context for the ERH
+# engine (defaults to ../../../Ethic-Latex relative to this file).
+
+name: iatg
+
+services:
+  trust-gateway:
+    build:
+      context: ../..
+      dockerfile: infra/docker/gateway.Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      GATEWAY_PORT: "8080"
+      GATEWAY_API_KEY: ${GATEWAY_API_KEY:-dev-key}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-dev-webhook-secret}
+      ERH_SERVICE_URL: http://erh-engine:8000
+      REDIS_URL: redis://redis:6379/0
+      MQTT_URL: tcp://mosquitto:1883
+      DATABASE_URL: postgres://iatg:iatg@postgres:5432/iatg?sslmode=disable
+    depends_on:
+      redis:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+      erh-engine:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+
+  erh-engine:
+    build:
+      context: ${ERH_CONTEXT:-../../../Ethic-Latex}
+      dockerfile: erh_engine/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      ERH_MODE: rest
+
+  adm-gateway:
+    profiles: ["adm"]
+    image: ghcr.io/jest-test-team/adm-gateway:latest
+    ports:
+      - "8081:8080"
+      - "9090:9090"
+    environment:
+      ADM_PORT: "8080"
+      ADM_GRPC_PORT: "9090"
+      ADM_REDIS_ADDR: redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  adm-siem:
+    profiles: ["adm"]
+    image: ghcr.io/jest-test-team/adm-siem:latest
+    ports:
+      - "9091:9091"
+    environment:
+      ADM_REDIS_ADDR: redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "no", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    # Dev-only database; production uses Neon (backup: Supabase). See
+    # infra/database/ for migrations, roles, and RLS policies.
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: iatg
+      POSTGRES_PASSWORD: iatg
+      POSTGRES_DB: iatg
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ../database/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iatg"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pg-data:
