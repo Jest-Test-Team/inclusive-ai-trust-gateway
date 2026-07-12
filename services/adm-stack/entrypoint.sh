@@ -1,6 +1,13 @@
 #!/bin/sh
 set -eu
 
+# Embedded Redis for the free-tier single-container deployment; disable with
+# ADM_EMBED_REDIS=0 when ADM_REDIS_URL points at a managed instance.
+if [ "${ADM_EMBED_REDIS:-1}" != "0" ]; then
+  redis-server --save '' --appendonly no --maxmemory 128mb \
+    --maxmemory-policy allkeys-lru --bind 127.0.0.1 --port 6379 &
+fi
+
 adm-siem &
 siem_pid="$!"
 
