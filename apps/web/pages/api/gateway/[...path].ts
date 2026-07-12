@@ -5,7 +5,7 @@ import { createProxyHandler } from "../../../lib/serverProxy";
 
 export default createProxyHandler({
   originEnv: ["GATEWAY_API_BASE_URL", "NEXT_PUBLIC_API_BASE_URL"],
-  defaultOrigin: "https://aitrustgateway-91c0f53r.b4a.run",
+  defaultOrigin: "https://aitrustgateway-yc07jtbe.b4a.run",
   injectKey: {
     header: "X-Api-Key",
     env: ["GATEWAY_API_KEY", "NEXT_PUBLIC_API_KEY"],
