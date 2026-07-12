@@ -11,3 +11,5 @@ tests/results/
 .venv/
 .turbo/
 .next/
+
+hint.txt
