@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      dev-dependencies:
+        dependency-type: development
+  - package-ecosystem: pip
+    directory: /tests
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  # Enable when services/gateway ships its Dockerfile (plan subtask 4):
+  # - package-ecosystem: docker
+  #   directory: /services/gateway
+  #   schedule:
+  #     interval: weekly

@@ -20,3 +20,40 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm build
 
+  robot-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tests/requirements.txt
+      - run: pnpm install --frozen-lockfile
+      - run: pip install -r tests/requirements.txt
+      - run: pnpm build
+      - name: Serve frontend preview
+        run: |
+          pnpm preview --port 4173 &
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:4173/ >/dev/null && break
+            sleep 1
+          done
+      - name: Run Robot smoke suites
+        run: |
+          robot --include smoke \
+            --variable APP_URL:http://127.0.0.1:4173 \
+            --outputdir tests/results tests/robot/web
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: robot-smoke-results
+          path: tests/results/
+
