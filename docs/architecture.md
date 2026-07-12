@@ -1,6 +1,6 @@
 # Architecture
 
-Inclusive AI Trust Gateway composes two real engines — **Ethic-Latex / ERH** (fairness and ethical-risk evaluation) and **Agentic Defense Matrix / ADM** (agent safety telemetry and containment) — behind one NestJS gateway that exposes the same trust core over seven protocols (REST, WebSocket, tRPC, GraphQL, MQTT, MCP, UCP).
+Inclusive AI Trust Gateway composes two real engines — **Ethic-Latex / ERH** (fairness and ethical-risk evaluation) and **Agentic Defense Matrix / ADM** (agent safety telemetry and containment) — behind one Go gateway that exposes the same trust core over seven protocols (REST, WebSocket, Connect-RPC, GraphQL, MQTT, MCP, UCP).
 
 ```mermaid
 flowchart TB
@@ -14,10 +14,10 @@ flowchart TB
 
     CF[Cloudflare · DNS / WAF / TLS / rate limits]
 
-    subgraph gw["services/gateway · NestJS (Back4App container)"]
+    subgraph gw["services/gateway · Go (Back4App container)"]
         REST[REST /v1]
         WS[WebSocket /ws]
-        TRPC[tRPC /trpc]
+        TRPC[Connect-RPC /iatg.v1]
         GQL[GraphQL /graphql]
         MCP[MCP /mcp]
         UCP[UCP commerce module]
@@ -36,7 +36,7 @@ flowchart TB
     ADM[adm-gateway + adm-siem · Go<br/>REST :8080 · gRPC :9090]
     REDIS[(Redis 7 · cache + pub/sub)]
     MOSQ[Mosquitto · MQTT broker]
-    PG[(Neon Postgres · Prisma<br/>backup: Supabase)]
+    PG[(Neon Postgres · ent<br/>backup: Supabase)]
 
     WEB --> CF --> REST
     WEB -.live feed.-> WS
@@ -54,14 +54,14 @@ flowchart TB
 
 ## Layer 1: Clients
 
-- **apps/web** — Next.js dashboard (trust assessments, live safety feed, UCP commerce trace). Typed calls via tRPC, REST fallback, WebSocket for streaming.
+- **apps/web** — Next.js dashboard (trust assessments, live safety feed, UCP commerce trace). Typed calls via the generated Connect-RPC TypeScript client, REST fallback, WebSocket for streaming.
 - **apps/mobile** — Expo React Native, shares the API client from `packages/shared` (ships post-submission).
 - **AI agents** — any MCP client can call `get_assessment`, `evaluate_service`, `list_safety_events`, `check_agent_trust`.
 - **Shopping agent (demo)** — transacts over UCP; every call is trust-gated (Layer 3).
 
 ## Layer 2: Gateway CQRS Core
 
-One business core, seven thin protocol adapters. Requests enter as **Request DTOs** (class-validator), are dispatched as **Commands/Queries** (`@nestjs/cqrs`), touch domain **Value Objects** and Prisma **Entities**, and exit as **Response DTOs** or UI-shaped **ViewModels**. Cross-cutting concerns are middleware: API-key guard, validation pipes, serialization/logging interceptors, HMAC-signed **webhooks** in and out. **Redis** provides the ERH result cache and the pub/sub event bus that fans ADM events out to WebSocket and MQTT subscribers.
+One business core, seven thin protocol adapters, written in Go. Requests enter as **Request DTO** structs (go-playground/validator), are dispatched as **Command/Query** objects through a small CQRS bus, touch domain **Value Objects** and ent **Entities**, and exit as **Response DTOs** or UI-shaped **ViewModels**. Cross-cutting concerns are chi middleware: API-key auth, validation, structured logging, recovery, CORS; **webhooks** are HMAC-signed in and out. **Redis** provides the ERH result cache and the pub/sub event bus that fans ADM events out to WebSocket and MQTT subscribers.
 
 ## Layer 3: Trust Engines (real containers, no stubs)
 
@@ -70,7 +70,7 @@ One business core, seven thin protocol adapters. Requests enter as **Request DTO
 
 ## Layer 4: Data
 
-Neon Postgres (Prisma; pooled TLS connections) holds use cases, personas, assessments, evidence, safety events, commerce sessions/events, and webhook subscriptions. Migrations, roles, and RLS policies live in `infra/database/`; a Supabase Postgres instance is kept schema-identical as a warm backup (nightly dump-restore; failover = env-var swap).
+Neon Postgres (ent ORM; pooled TLS connections) holds use cases, personas, assessments, evidence, safety events, commerce sessions/events, and webhook subscriptions. Migrations, roles, and RLS policies live in `infra/database/`; a Supabase Postgres instance is kept schema-identical as a warm backup (nightly dump-restore; failover = env-var swap).
 
 ## Layer 5: Edge & Operations
 
