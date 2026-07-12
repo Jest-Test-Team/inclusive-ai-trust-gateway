@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Inclusive AI Trust Gateway",
+    "slug": "inclusive-ai-trust-gateway",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "platforms": ["ios", "android"],
+    "extra": {
+      "apiBaseUrl": ""
+    }
+  }
+}

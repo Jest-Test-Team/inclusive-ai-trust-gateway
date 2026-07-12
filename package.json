@@ -8,7 +8,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "dev": "turbo run dev",
-    "preview": "pnpm --filter @iatg/demo preview"
+    "preview": "pnpm --filter @iatg/web preview"
   },
   "keywords": [
     "digital-inclusion",

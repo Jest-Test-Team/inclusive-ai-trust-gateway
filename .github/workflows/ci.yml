@@ -42,7 +42,7 @@ jobs:
       - run: pnpm build
       - name: Serve frontend preview
         run: |
-          pnpm --filter @iatg/demo preview --port 4173 &
+          pnpm --filter @iatg/web preview --port 4173 &
           for i in $(seq 1 30); do
             curl -sf http://127.0.0.1:4173/ >/dev/null && break
             sleep 1

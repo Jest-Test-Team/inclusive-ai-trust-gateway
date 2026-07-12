@@ -5,3 +5,10 @@ packages:
 
 allowBuilds:
   esbuild: true
+  sharp: true
+
+# Do not hoist @types/* to the workspace root: apps/web (React 19) and
+# apps/mobile (React Native / React 18) need their own React type versions.
+publicHoistPattern:
+  - "*eslint*"
+  - "*prettier*"
