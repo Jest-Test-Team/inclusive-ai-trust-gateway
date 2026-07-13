@@ -37,6 +37,9 @@ interface PlaygroundCopy {
   colFairness: string;
   colEvaluator: string;
   colCreated: string;
+  reassessStale: string;
+  reassessing: string;
+  reassessDone: string;
   offline: string;
   ucpHint: string;
   resultTitle: string;
@@ -74,6 +77,9 @@ const playgroundCopy: Record<Locale, PlaygroundCopy> = {
     colFairness: "Fairness",
     colEvaluator: "Evaluator",
     colCreated: "Created",
+    reassessStale: "Re-score legacy 12/100 rows",
+    reassessing: "Re-scoring...",
+    reassessDone: "Re-scored",
     offline: "Offline demo mode - the playground needs the live gateway.",
     ucpHint:
       "Tip: fair-priced items (CARE-001~003) should be Allowed. CARE-004 is an intentional price-gouge demo and should be Blocked.",
@@ -114,6 +120,9 @@ const playgroundCopy: Record<Locale, PlaygroundCopy> = {
     colFairness: "公平風險",
     colEvaluator: "評估器",
     colCreated: "建立時間",
+    reassessStale: "重算舊版 12/100 評估",
+    reassessing: "重算中...",
+    reassessDone: "已重算",
     offline: "離線示範模式 - 遊樂場需要連上即時閘道。",
     ucpHint:
       "提示：公平定價商品（CARE-001～003）應顯示「允許」。CARE-004 是故意偏高的示範商品，信任閘道會「阻擋」。",
@@ -153,6 +162,8 @@ export function Playground({ locale }: { locale: Locale }) {
   const [quantity, setQuantity] = useState(1);
 
   const [busy, setBusy] = useState(false);
+  const [reassessing, setReassessing] = useState(false);
+  const [reassessNote, setReassessNote] = useState("");
   const [cards, setCards] = useState<ResultCard[]>([]);
   const [raw, setRaw] = useState("");
   const [recent, setRecent] = useState<AssessmentResponse[]>([]);
@@ -165,6 +176,21 @@ export function Playground({ locale }: { locale: Locale }) {
       setRecent(listed.items.slice(0, 8));
     } catch {
       // gateway offline; table stays empty
+    }
+  }
+
+  async function reassessLegacyRows() {
+    if (!liveMode) return;
+    setReassessing(true);
+    setReassessNote("");
+    try {
+      const result = await gateway.reassessStaleAssessments();
+      setReassessNote(`${t.reassessDone}: ${result.updated}`);
+      await refreshRecent();
+    } catch (err) {
+      setReassessNote(err instanceof Error ? err.message : "reassess failed");
+    } finally {
+      setReassessing(false);
     }
   }
 
@@ -404,7 +430,13 @@ export function Playground({ locale }: { locale: Locale }) {
 
       {recent.length > 0 && (
         <div className="playground-table-wrap">
-          <h3>{t.recentTitle}</h3>
+          <div className="api-header">
+            <h3>{t.recentTitle}</h3>
+            <button type="button" className="playground-send" disabled={reassessing} onClick={() => void reassessLegacyRows()}>
+              {reassessing ? t.reassessing : t.reassessStale}
+            </button>
+          </div>
+          {reassessNote && <p className="api-empty">{reassessNote}</p>}
           <table className="playground-table">
             <thead>
               <tr>

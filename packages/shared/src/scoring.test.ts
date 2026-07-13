@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assessUseCase, formatScore } from "./scoring";
+import { assessUseCase, formatScore, riskScore } from "./scoring";
 import { safetySignals, useCases } from "./sampleData";
 import { trustAssessmentSchema, useCaseInputSchema } from "./schemas";
 
@@ -23,8 +23,34 @@ describe("assessUseCase", () => {
     }
   });
 
+  it("assigns different fairness risk scores across sample use cases", () => {
+    const scores = useCases.map((useCase) => {
+      const assessment = assessUseCase(useCase, safetySignals);
+      const totalBarriers = useCase.personas.reduce((total, persona) => total + persona.barriers.length, 0);
+      const unresolvedGaps = totalBarriers - useCase.safeguards.length;
+      return riskScore(
+        assessment.inclusionScore,
+        unresolvedGaps,
+        totalBarriers,
+        assessment.openDataReadiness,
+      );
+    });
+    expect(new Set(scores).size).toBeGreaterThan(1);
+    expect(scores.every((score) => score >= 0 && score <= 100)).toBe(true);
+  });
+
   it("degrades fairness risk when personas and safeguards are removed", () => {
-    const stripped = { ...useCases[0], personas: [], safeguards: [], openDataSources: [] };
+    const stripped = {
+      ...useCases[0],
+      personas: [
+        {
+          ...useCases[0].personas[0],
+          barriers: ["b1", "b2", "b3", "b4"],
+        },
+      ],
+      safeguards: [],
+      openDataSources: [],
+    };
     const assessment = assessUseCase(stripped, []);
     expect(assessment.fairnessRisk).toBe("High");
   });

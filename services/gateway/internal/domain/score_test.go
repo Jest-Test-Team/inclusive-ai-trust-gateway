@@ -23,14 +23,32 @@ func TestClampScore(t *testing.T) {
 }
 
 func TestRiskLabelBands(t *testing.T) {
-	if RiskLabelFor(90, 0) != RiskLow {
-		t.Error("high inclusion, no gaps should be Low")
+	if RiskLabelFor(Score(20)) != RiskLow {
+		t.Error("risk <= 33 should be Low")
 	}
-	if RiskLabelFor(70, 5) != RiskMedium {
-		t.Error("mid inclusion should be Medium")
+	if RiskLabelFor(Score(50)) != RiskMedium {
+		t.Error("risk <= 66 should be Medium")
 	}
-	if RiskLabelFor(30, 8) != RiskHigh {
-		t.Error("low inclusion should be High")
+	if RiskLabelFor(Score(80)) != RiskHigh {
+		t.Error("risk > 66 should be High")
+	}
+}
+
+func TestRiskScoreDifferentiatesInputs(t *testing.T) {
+	low := RiskScore(RiskInputs{
+		Inclusion:         100,
+		UnresolvedGaps:    1,
+		TotalBarriers:     6,
+		OpenDataReadiness: 88,
+	})
+	high := RiskScore(RiskInputs{
+		Inclusion:         100,
+		UnresolvedGaps:    5,
+		TotalBarriers:     7,
+		OpenDataReadiness: 88,
+	})
+	if low == high {
+		t.Errorf("expected different risk scores, both got %d", low)
 	}
 }
 

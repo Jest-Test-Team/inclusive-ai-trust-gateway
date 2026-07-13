@@ -37,7 +37,7 @@ func TestFallbackParityWithSharedScoring(t *testing.T) {
 	// openData = clamp(3*22) = 66
 	// agentSafety = 2*28 + 2*14 = 84
 	// inclusion = clamp(18 + 2*12 + 6*4 + 3*8 + 66*0.18) = clamp(101.88) = 100
-	// unresolvedGaps = 6 - 3 = 3 -> inclusion>=82 but gaps>2 -> Medium
+	// fairness risk = gap(24) + barrier(15) + open-data residual(5.1) = 44 -> Medium
 	if res.OpenDataReadiness != 66 {
 		t.Errorf("openData = %d, want 66", res.OpenDataReadiness)
 	}
@@ -46,6 +46,9 @@ func TestFallbackParityWithSharedScoring(t *testing.T) {
 	}
 	if res.InclusionScore != 100 {
 		t.Errorf("inclusion = %d, want 100", res.InclusionScore)
+	}
+	if res.FairnessRiskScore != 44 {
+		t.Errorf("fairness risk score = %d, want 44", res.FairnessRiskScore)
 	}
 	if res.FairnessRiskLabel != "Medium" {
 		t.Errorf("risk label = %s, want Medium", res.FairnessRiskLabel)

@@ -2,15 +2,32 @@ import type { AgentSafetySignal, PublicServiceUseCase, TrustAssessment } from ".
 
 const clampScore = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
 
+export function riskScore(
+  inclusionScore: number,
+  unresolvedGaps: number,
+  totalBarriers: number,
+  openDataReadiness: number,
+): number {
+  const inclusionDeficit = (100 - inclusionScore) * 0.5;
+  const gapPenalty = Math.min(48, Math.max(0, unresolvedGaps) * 8);
+  const barrierLoad = Math.min(25, Math.round(totalBarriers * 2.5));
+  const openDataResidual = (100 - openDataReadiness) * 0.15;
+  return clampScore(inclusionDeficit + gapPenalty + barrierLoad + openDataResidual);
+}
+
+function riskLabelFor(score: number): "Low" | "Medium" | "High" {
+  if (score <= 33) return "Low";
+  if (score <= 66) return "Medium";
+  return "High";
+}
+
 export function assessUseCase(
   useCase: PublicServiceUseCase,
   safetySignals: AgentSafetySignal[],
 ): TrustAssessment {
   const personaCoverage = useCase.personas.length * 12;
-  const barrierCoverage = useCase.personas.reduce(
-    (total, persona) => total + persona.barriers.length * 4,
-    0,
-  );
+  const totalBarriers = useCase.personas.reduce((total, persona) => total + persona.barriers.length, 0);
+  const barrierCoverage = totalBarriers * 4;
   const safeguardCoverage = useCase.safeguards.length * 8;
   const openDataReadiness = clampScore(useCase.openDataSources.length * 22);
 
@@ -22,16 +39,10 @@ export function assessUseCase(
     18 + personaCoverage + barrierCoverage + safeguardCoverage + openDataReadiness * 0.18,
   );
 
-  const unresolvedGaps =
-    useCase.personas.reduce((total, persona) => total + persona.barriers.length, 0) -
-    useCase.safeguards.length;
-
-  const fairnessRisk =
-    inclusionScore >= 82 && unresolvedGaps <= 2
-      ? "Low"
-      : inclusionScore >= 64
-        ? "Medium"
-        : "High";
+  const unresolvedGaps = totalBarriers - useCase.safeguards.length;
+  const fairnessRisk = riskLabelFor(
+    riskScore(inclusionScore, unresolvedGaps, totalBarriers, openDataReadiness),
+  );
 
   return {
     inclusionScore,

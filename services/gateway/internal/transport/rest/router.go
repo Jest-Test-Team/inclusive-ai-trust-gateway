@@ -4,11 +4,13 @@
 package rest
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -40,6 +42,8 @@ type Server struct {
 	bus      *cqrs.Bus
 	validate *validator.Validate
 	apiKey   string
+	erhURL   string
+	erhPing  func(context.Context) error
 
 	// Optional protocol surfaces mounted alongside REST; nil = not enabled.
 	WS          http.Handler // /ws
@@ -54,14 +58,19 @@ func NewServer(bus *cqrs.Bus, apiKey string) *Server {
 	return &Server{bus: bus, validate: validator.New(), apiKey: apiKey}
 }
 
+// WithERHHealth attaches ERH connectivity reporting to /healthz.
+func (s *Server) WithERHHealth(url string, ping func(context.Context) error) *Server {
+	s.erhURL = url
+	s.erhPing = ping
+	return s
+}
+
 func (s *Server) Router() http.Handler {
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID, chimw.RealIP, chimw.Logger, chimw.Recoverer)
 	r.Use(middleware.CORS)
 
-	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-	})
+	r.Get("/healthz", s.healthz)
 	r.Get("/openapi.json", s.openAPI)
 	r.Get("/docs", s.swaggerUI)
 	r.Get("/swagger", s.swaggerUI)
@@ -69,6 +78,8 @@ func (s *Server) Router() http.Handler {
 	r.Route("/v1", func(v1 chi.Router) {
 		v1.Use(middleware.APIKey(s.apiKey))
 		v1.Post("/assessments", s.createAssessment)
+		v1.Post("/assessments/reassess-stale", s.reassessStale)
+		v1.Post("/assessments/{id}/reassess", s.reassessAssessment)
 		v1.Get("/assessments", s.listAssessments)
 		v1.Get("/assessments/{id}", s.getAssessment)
 		v1.Get("/dashboard", s.dashboard)
@@ -120,6 +131,65 @@ func (s *Server) createAssessment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, dto.FromAssessment(a))
+}
+
+func (s *Server) reassessAssessment(w http.ResponseWriter, r *http.Request) {
+	a, err := cqrs.Dispatch[commands.ReassessAssessment, assessments.Assessment](
+		r.Context(), s.bus,
+		commands.ReassessAssessment{ID: chi.URLParam(r, "id"), SafetySignals: defaultSafetySignals},
+	)
+	switch {
+	case errors.Is(err, assessments.ErrNotFound):
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
+	case err != nil:
+		slog.Error("reassess assessment failed", "err", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "reassess failed"})
+	default:
+		writeJSON(w, http.StatusOK, dto.FromAssessment(a))
+	}
+}
+
+func (s *Server) reassessStale(w http.ResponseWriter, r *http.Request) {
+	result, err := cqrs.Dispatch[commands.ReassessStale, commands.ReassessStaleResult](
+		r.Context(), s.bus,
+		commands.ReassessStale{Limit: 200, SafetySignals: defaultSafetySignals},
+	)
+	if err != nil {
+		slog.Error("reassess stale assessments failed", "err", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "reassess failed"})
+		return
+	}
+	items := make([]dto.AssessmentResponse, 0, len(result.Items))
+	for _, a := range result.Items {
+		items = append(items, dto.FromAssessment(a))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"updated": result.Updated, "items": items})
+}
+
+func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
+	body := map[string]any{
+		"status": "ok",
+		"erh": map[string]any{
+			"configured": s.erhURL != "",
+			"reachable":  false,
+			"evaluator":  "deterministic-fallback",
+		},
+	}
+	if s.erhURL != "" {
+		body["erh"].(map[string]any)["url"] = s.erhURL
+		body["erh"].(map[string]any)["evaluator"] = "resilient"
+		if s.erhPing != nil {
+			ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+			defer cancel()
+			if err := s.erhPing(ctx); err == nil {
+				body["erh"].(map[string]any)["reachable"] = true
+				body["erh"].(map[string]any)["evaluator"] = "erh-engine"
+			} else {
+				body["erh"].(map[string]any)["error"] = err.Error()
+			}
+		}
+	}
+	writeJSON(w, http.StatusOK, body)
 }
 
 func (s *Server) getAssessment(w http.ResponseWriter, r *http.Request) {

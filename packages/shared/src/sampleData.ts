@@ -75,7 +75,6 @@ export const useCases: PublicServiceUseCase[] = [
     safeguards: [
       "source-grounded responses",
       "critical-alert escalation",
-      "egress controls for agent tools",
     ],
     personas: [
       {
@@ -84,7 +83,12 @@ export const useCases: PublicServiceUseCase[] = [
         ageGroup: "all ages",
         region: "coastal",
         needs: ["accessible evacuation routes", "shelter accessibility", "care supplies"],
-        barriers: ["fast-changing information", "transport gaps", "caregiver separation"],
+        barriers: [
+          "fast-changing information",
+          "transport gaps",
+          "caregiver separation",
+          "power outage during evacuation",
+        ],
       },
       {
         id: "new-language-community",
@@ -123,6 +127,7 @@ export const useCases: PublicServiceUseCase[] = [
       "age-appropriate data boundaries",
       "teacher override",
       "bias drift monitoring",
+      "plain-language consent prompts",
     ],
     personas: [
       {

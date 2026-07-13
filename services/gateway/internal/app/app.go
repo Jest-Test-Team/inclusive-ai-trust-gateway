@@ -6,6 +6,7 @@ package app
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -23,11 +24,13 @@ import (
 )
 
 type App struct {
-	Cfg      config.Config
-	Bus      *cqrs.Bus
-	Events   eventbus.Bus
-	Webhooks *webhooks.Dispatcher
-	Commerce *commerce.Service
+	Cfg       config.Config
+	Bus       *cqrs.Bus
+	Events    eventbus.Bus
+	Webhooks  *webhooks.Dispatcher
+	Commerce  *commerce.Service
+	Evaluator erh.Evaluator
+	ERHClient *erh.EngineClient
 }
 
 func New(cfg config.Config) *App {
@@ -41,11 +44,22 @@ func New(cfg config.Config) *App {
 	}
 
 	var evaluator erh.Evaluator = erh.Fallback{}
+	var erhClient *erh.EngineClient
 	if cfg.ERHServiceURL != "" {
+		erhClient = erh.NewEngineClient(cfg.ERHServiceURL, cfg.ERHTimeout)
 		evaluator = erh.Resilient{
-			Primary:  erh.NewEngineClient(cfg.ERHServiceURL, cfg.ERHTimeout),
+			Primary:  erhClient,
 			Fallback: erh.Fallback{},
 		}
+		ctx, cancel := context.WithTimeout(context.Background(), cfg.ERHTimeout)
+		if err := erhClient.Ping(ctx); err != nil {
+			slog.Warn("erh-engine unreachable at startup; assessments will use fallback until engine is healthy", "url", cfg.ERHServiceURL, "err", err)
+		} else {
+			slog.Info("erh-engine connected", "url", cfg.ERHServiceURL)
+		}
+		cancel()
+	} else {
+		slog.Warn("ERH_SERVICE_URL unset; assessments use deterministic-fallback scoring only")
 	}
 
 	hooks := webhooks.NewDispatcher(cfg.WebhookSecret)
@@ -55,6 +69,7 @@ func New(cfg config.Config) *App {
 	var repo assessments.Repository = assessments.NewMemoryRepository()
 	var store adm.Store = adm.NewMemoryStore()
 	var commerceStore commerce.Store = commerce.NopStore{}
+	usingPostgres := false
 	if cfg.DatabaseURL != "" {
 		ctx := context.Background()
 		if pool, err := postgres.Connect(ctx, cfg.DatabaseURL); err != nil {
@@ -66,6 +81,7 @@ func New(cfg config.Config) *App {
 			repo = assessments.NewPostgresRepository(pool)
 			store = adm.NewPostgresStore(pool)
 			commerceStore = commerce.NewPostgresStore(pool)
+			usingPostgres = true
 			slog.Info("postgres repositories active")
 		}
 	}
@@ -76,6 +92,12 @@ func New(cfg config.Config) *App {
 	cqrs.Register[commands.CreateAssessment, assessments.Assessment](bus, commands.CreateAssessmentHandler{
 		Repo: repo, Evaluator: evaluator, Bus: events, Webhooks: hooks,
 	})
+	cqrs.Register[commands.ReassessAssessment, assessments.Assessment](bus, commands.ReassessAssessmentHandler{
+		Repo: repo, Evaluator: evaluator,
+	})
+	cqrs.Register[commands.ReassessStale, commands.ReassessStaleResult](bus, commands.ReassessStaleHandler{
+		Repo: repo, Evaluator: evaluator,
+	})
 	cqrs.Register[queries.GetAssessment, assessments.Assessment](bus, queries.GetAssessmentHandler{Repo: repo})
 	cqrs.Register[queries.ListAssessments, []assessments.Assessment](bus, queries.ListAssessmentsHandler{Repo: repo})
 	cqrs.Register[queries.CountAssessments, int](bus, queries.CountAssessmentsHandler{Repo: repo})
@@ -83,7 +105,35 @@ func New(cfg config.Config) *App {
 	cqrs.Register[adm.ListEvents, []adm.SafetyEvent](bus, adm.ListEventsHandler{Store: store})
 	cqrs.Register[adm.CountEventsByType, map[string]int](bus, adm.CountEventsByTypeHandler{Store: store})
 
-	return &App{Cfg: cfg, Bus: bus, Events: events, Webhooks: hooks, Commerce: ucp}
+	if cfg.AutoReassessStale && usingPostgres {
+		go reassessStaleOnBoot(bus, defaultSafetySignals())
+	}
+
+	return &App{Cfg: cfg, Bus: bus, Events: events, Webhooks: hooks, Commerce: ucp, Evaluator: evaluator, ERHClient: erhClient}
+}
+
+func reassessStaleOnBoot(bus *cqrs.Bus, signals []erh.SafetySignal) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	result, err := cqrs.Dispatch[commands.ReassessStale, commands.ReassessStaleResult](
+		ctx, bus, commands.ReassessStale{Limit: 200, SafetySignals: signals},
+	)
+	if err != nil {
+		slog.Warn("auto reassess stale assessments failed", "err", err)
+		return
+	}
+	if result.Updated > 0 {
+		slog.Info("re-scored legacy assessments", "updated", result.Updated)
+	}
+}
+
+func defaultSafetySignals() []erh.SafetySignal {
+	return []erh.SafetySignal{
+		{Control: "Prompt-injection trajectory monitoring", Status: "ready"},
+		{Control: "Tool-call policy enforcement", Status: "ready"},
+		{Control: "Session-bound containment", Status: "partial"},
+		{Control: "Open-data provenance checks", Status: "partial"},
+	}
 }
 
 func migrateIfEnabled(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) error {

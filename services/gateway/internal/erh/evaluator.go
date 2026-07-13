@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -90,7 +91,27 @@ type EngineClient struct {
 }
 
 func NewEngineClient(baseURL string, timeout time.Duration) *EngineClient {
-	return &EngineClient{baseURL: baseURL, client: &http.Client{Timeout: timeout}}
+	return &EngineClient{baseURL: strings.TrimRight(baseURL, "/"), client: &http.Client{Timeout: timeout}}
+}
+
+// Ping checks erh-engine liveness via GET /v1/health.
+func (c *EngineClient) Ping(ctx context.Context) error {
+	if c == nil || c.baseURL == "" {
+		return fmt.Errorf("erh-engine: not configured")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/v1/health", nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("erh-engine: health status %d", resp.StatusCode)
+	}
+	return nil
 }
 
 func (c *EngineClient) Evaluate(ctx context.Context, uc UseCase, signals []SafetySignal) (Result, error) {

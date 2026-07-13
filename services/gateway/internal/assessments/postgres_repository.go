@@ -71,6 +71,28 @@ func (r *PostgresRepository) Create(ctx context.Context, a Assessment) error {
 	return tx.Commit(ctx)
 }
 
+func (r *PostgresRepository) Update(ctx context.Context, a Assessment) error {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE assessments
+		SET inclusion_score = $2,
+		    fairness_risk = $3,
+		    fairness_risk_label = $4,
+		    open_data_readiness = $5,
+		    agent_safety_readiness = $6,
+		    evaluator = $7
+		WHERE id = $1`,
+		a.ID, a.Result.InclusionScore, a.Result.FairnessRiskScore, a.Result.FairnessRiskLabel,
+		a.Result.OpenDataReadiness, a.Result.AgentSafetyReadiness, a.Result.Evaluator,
+	)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (r *PostgresRepository) Count(ctx context.Context) (int, error) {
 	var n int
 	if err := r.pool.QueryRow(ctx, `SELECT count(*) FROM assessments`).Scan(&n); err != nil {
@@ -99,6 +121,19 @@ func (r *PostgresRepository) List(ctx context.Context, limit int) ([]Assessment,
 		limit = 20
 	}
 	rows, err := r.pool.Query(ctx, assessmentQuery+` ORDER BY a.created_at DESC LIMIT $1`, limit)
+	if err != nil {
+		return nil, err
+	}
+	return scanAssessments(ctx, r.pool, rows)
+}
+
+func (r *PostgresRepository) ListStale(ctx context.Context, limit int) ([]Assessment, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := r.pool.Query(ctx, assessmentQuery+`
+		WHERE a.evaluator = 'deterministic-fallback' AND a.fairness_risk = 12
+		ORDER BY a.created_at DESC LIMIT $1`, limit)
 	if err != nil {
 		return nil, err
 	}
