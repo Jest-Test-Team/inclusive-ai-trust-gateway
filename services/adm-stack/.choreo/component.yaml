@@ -1,0 +1,14 @@
+# ADM stack — Choreo Service component (build context: services/adm-stack).
+# Env vars (ADM_PORT, ADM_EMBED_REDIS, ...) are set in the Choreo component's
+# Configs & Secrets UI; see infra/choreo/README.md.
+schemaVersion: 1.2
+
+endpoints:
+  - name: adm
+    displayName: ADM Stack (gateway + SIEM)
+    service:
+      basePath: /
+      port: 8080
+    type: REST
+    networkVisibilities:
+      - Public

@@ -3,7 +3,7 @@
 
 import { createGatewayClient } from "@iatg/shared";
 
-export const gatewayOrigin = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://aitrustgateway-yc07jtbe.b4a.run";
+export const gatewayOrigin = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 export const apiBaseURL = "/api/gateway";
 export const apiKey = process.env.NEXT_PUBLIC_API_KEY ?? "dev-key";
 export const liveMode = gatewayOrigin !== "";

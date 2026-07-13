@@ -89,6 +89,24 @@ func TestPostgresRoundTrip(t *testing.T) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
 
+	// Regression: minimal payloads leave optional slices nil; those must not
+	// encode as SQL NULL against the NOT NULL array columns.
+	minimal := assessments.Assessment{
+		ID:      uuid.NewString(),
+		UseCase: erh.UseCase{Name: "Minimal case", Domain: "care"},
+		Result: erh.Result{
+			InclusionScore: 18, FairnessRiskScore: 49, FairnessRiskLabel: "High",
+			Evaluator: "deterministic-fallback",
+		},
+		CreatedAt: time.Now().UTC(),
+	}
+	if err := repo.Create(ctx, minimal); err != nil {
+		t.Fatalf("minimal payload insert: %v", err)
+	}
+	if _, err := repo.Get(ctx, minimal.ID); err != nil {
+		t.Fatalf("minimal payload get: %v", err)
+	}
+
 	store := adm.NewPostgresStore(pool)
 	event := adm.SafetyEvent{
 		ID: uuid.NewString(), EventType: "containment", Severity: domain.SeverityCritical,

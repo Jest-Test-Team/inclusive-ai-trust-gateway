@@ -3,7 +3,7 @@
 //
 // The canonical migrations live in infra/database/migrations; this package
 // embeds a byte-for-byte copy (see migrations/) so the container can
-// self-migrate on boot — Back4App has no separate migration step. Keep the
+// self-migrate on boot — Choreo has no separate migration step. Keep the
 // two directories in sync when adding migrations.
 package postgres
 

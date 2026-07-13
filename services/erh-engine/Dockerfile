@@ -1,4 +1,4 @@
-# Self-contained ERH Engine deployment for Back4App.
+# Self-contained ERH Engine deployment (Choreo or any container host).
 # Build context: services/erh-engine
 FROM python:3.11-slim
 
@@ -19,6 +19,10 @@ ENV PYTHONPATH=/app
 ENV ERH_MODE=rest
 
 EXPOSE 8000
+
+# Choreo requires a numeric non-root UID in the 10000-20000 range.
+RUN useradd --uid 10014 --create-home iatg
+USER 10014
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8000}/v1/health || exit 1

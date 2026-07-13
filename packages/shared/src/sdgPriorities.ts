@@ -26,7 +26,7 @@ export const sdgPriorities: SdgPriority[] = [
     fit: "core",
     repoCanDo: "Provide reusable AI trust infrastructure across REST, GraphQL, WebSocket, Connect-RPC, MCP, MQTT, and UCP.",
     proofPath: "Seven protocol adapters over one CQRS trust core",
-    implementation: ["Shared gateway client", "multi-service Back4App roots", "Connect-RPC methods", "MCP tools"],
+    implementation: ["Shared gateway client", "multi-service Choreo deployment", "Connect-RPC methods", "MCP tools"],
   },
   {
     sdg: "SDG 11",

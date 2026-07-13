@@ -34,14 +34,12 @@ Smoke-check the running stack with the Robot suites:
 robot --include api --variable BASE_URL:http://127.0.0.1:8080 tests/robot/api
 ```
 
-## Production mapping (Back4App)
+## Production mapping (Choreo)
 
-Each service above deploys as one Back4App container app; only env vars
-change (`DATABASE_URL` → Neon pooled URL, `MQTT_URL`/`REDIS_URL` → internal
-hostnames). Per plan D6, if Back4App networking blocks Mosquitto or Redis,
-switch to HiveMQ Cloud / Upstash by changing those two env vars — no code
-changes. The ADM images are pinned to `latest` during the hackathon; pin a
-digest before the finals deployment.
+Three Service components on [console.choreo.dev](https://console.choreo.dev):
+`trust-gateway` (repo root), `adm-stack`, and `erh-engine`. Postgres uses Neon;
+gateway Redis/MQTT use in-process degradation, Upstash, or HiveMQ Cloud when
+not running the full compose stack. See `infra/choreo/README.md` for env vars.
 
 ## Security notes
 

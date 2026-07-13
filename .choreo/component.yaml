@@ -1,0 +1,15 @@
+# Trust gateway — Choreo Service component (build context: repo root).
+# Console: Create Component → Service → Docker → Dockerfile ./Dockerfile
+# Env vars (GATEWAY_API_KEY, DATABASE_URL, ERH_SERVICE_URL, ...) are set in
+# the Choreo component's Configs & Secrets UI; see infra/choreo/README.md.
+schemaVersion: 1.2
+
+endpoints:
+  - name: gateway
+    displayName: Inclusive AI Trust Gateway
+    service:
+      basePath: /
+      port: 8080
+    type: REST
+    networkVisibilities:
+      - Public

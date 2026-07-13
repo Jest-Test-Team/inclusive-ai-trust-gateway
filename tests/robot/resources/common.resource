@@ -6,7 +6,7 @@ Documentation     Shared variables and keywords for Inclusive AI Trust Gateway s
 Library           RequestsLibrary
 
 *** Variables ***
-# Gateway API base URL (Back4App container or local `pnpm --dir services/gateway dev`).
+# Gateway API base URL (Choreo container or local `pnpm --dir services/gateway dev`).
 ${BASE_URL}       http://127.0.0.1:8080
 # Frontend base URL (Vercel deployment or local `pnpm preview`).
 ${APP_URL}        http://127.0.0.1:4173

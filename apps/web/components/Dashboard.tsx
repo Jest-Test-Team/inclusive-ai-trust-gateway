@@ -25,6 +25,7 @@ import {
   type PublicServiceUseCase,
 } from "@iatg/shared";
 import { apiBaseURL, apiKey, gateway, liveMode, openLiveFeed } from "../lib/api";
+import { Playground } from "./Playground";
 
 const copy = {
   en: {
@@ -70,7 +71,7 @@ const copy = {
       ["Gate transactions", "Block or flag delegated commerce when fairness or containment checks fail."],
       ["Share evidence", "Expose Swagger, GraphQL, Connect-RPC, and MCP interfaces for partners."],
     ],
-    enginesTitle: "Engine Deployments (Back4App)",
+    enginesTitle: "Engine Deployments (Choreo)",
     enginesIntro:
       "The ADM stack and ERH engine run as their own containers; the dashboard reaches them through the /api/adm and /api/erh proxies.",
     runErh: "Run ERH fairness evaluation",
@@ -121,7 +122,7 @@ const copy = {
       ["交易把關", "當公平性或圍堵檢查未通過時，阻擋或標記代理代購。"],
       ["共享證據", "對夥伴提供 Swagger、GraphQL、Connect-RPC 與 MCP 介面。"],
     ],
-    enginesTitle: "引擎部署狀態（Back4App）",
+    enginesTitle: "引擎部署狀態（Choreo）",
     enginesIntro: "ADM 與 ERH 引擎各自以容器部署；儀表板透過 /api/adm 與 /api/erh 代理連線。",
     runErh: "執行 ERH 公平性評估",
     erhResult: "此情境的 ERH 評估結果",
@@ -287,6 +288,7 @@ export function Dashboard() {
 
       <SdgPriorityPanel locale={locale} t={t} />
       <ApiSurfacePanel useCase={selected} t={t} />
+      <Playground locale={locale} />
       <EnginesPanel useCase={selected} t={t} />
     </>
   );

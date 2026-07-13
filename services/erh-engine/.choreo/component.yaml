@@ -1,0 +1,14 @@
+# ERH engine — Choreo Service component (build context: services/erh-engine).
+# Env vars (ERH_MODE, PORT) are set in the Choreo component's Configs &
+# Secrets UI; see infra/choreo/README.md.
+schemaVersion: 1.2
+
+endpoints:
+  - name: erh
+    displayName: ERH Fairness Engine
+    service:
+      basePath: /
+      port: 8000
+    type: REST
+    networkVisibilities:
+      - Public

@@ -3,18 +3,19 @@
 Vendored deployment copy of the Ethic-Latex ERH engine used by the Inclusive
 AI Trust Gateway.
 
-Back4App settings:
+Choreo settings (see `infra/choreo/README.md`):
 
-- Root directory: `services/erh-engine`
-- Port: `8000`
+- Component directory: `services/erh-engine`
+- Build preset: Docker
+- Port: `8000` (from `.choreo/component.yaml`)
 - Env vars:
   - `ERH_MODE=rest`
 
-After deployment, set the gateway app env:
+After deployment, set the gateway component env:
 
 ```env
-ERH_SERVICE_URL=https://<erh-engine-app>.b4a.run
+ERH_SERVICE_URL=https://<erh-engine-choreo-public-url>
 ```
 
 The source was copied from the sibling `Ethic-Latex` repository so this repo can
-build the ERH container without relying on an external Back4App GitHub app.
+build the ERH container without relying on an external deployment hook.

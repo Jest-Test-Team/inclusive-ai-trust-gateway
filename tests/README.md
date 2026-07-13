@@ -1,7 +1,7 @@
 # Tests
 
 Robot Framework acceptance suites for the Inclusive AI Trust Gateway. The same
-suites run against local dev servers, Back4App staging, and the
+suites run against local dev servers, Choreo staging, and the
 Cloudflare-fronted production URLs by overriding two variables.
 
 ## Layout
@@ -63,5 +63,5 @@ robot --include ui --variable APP_URL:https://app.<domain> \
 
 The `api`-tagged suites run against the Go gateway (`services/gateway`) —
 locally via `go run ./cmd/gateway`, in CI via the `gateway` job, and against
-Back4App/Cloudflare deployments via `BASE_URL`. Results land in
+Choreo/Cloudflare deployments via `BASE_URL`. Results land in
 `tests/results/` (gitignored).

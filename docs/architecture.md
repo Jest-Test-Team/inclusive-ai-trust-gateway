@@ -14,7 +14,7 @@ flowchart TB
 
     CF[Cloudflare · DNS / WAF / TLS / rate limits]
 
-    subgraph gw["services/gateway · Go (Back4App container)"]
+    subgraph gw["services/gateway · Go (Choreo container)"]
         REST[REST /v1]
         WS[WebSocket /ws]
         TRPC[Connect-RPC /iatg.v1]
@@ -74,7 +74,7 @@ Neon Postgres (ent ORM; pooled TLS connections) holds use cases, personas, asses
 
 ## Layer 5: Edge & Operations
 
-Cloudflare fronts everything (DNS, TLS Full-strict, WAF managed rules, per-path rate limits on `/v1/*`, `/graphql`, `/trpc`, `/mcp`). Containers deploy to Back4App (`trust-gateway`, `erh-engine`, `adm-gateway`, `adm-siem`, `mosquitto`, `redis`); the web app deploys to Vercel. The full stack also runs locally from `infra/docker/docker-compose.yml`, which is what the demo video records.
+Cloudflare fronts everything (DNS, TLS Full-strict, WAF managed rules, per-path rate limits on `/v1/*`, `/graphql`, `/trpc`, `/mcp`). Three backend containers deploy to Choreo (`trust-gateway`, `adm-stack`, `erh-engine`); Postgres uses Neon (+ Supabase backup); optional Redis/MQTT use managed services. The web app deploys to Vercel. The full stack also runs locally from `infra/docker/docker-compose.yml`, which is what the demo video records.
 
 ## Trust Assessment Output
 

@@ -42,7 +42,7 @@ const openAPISpec = `{
     "description": "REST, GraphQL, WebSocket, UCP, and Connect-RPC surfaces for public-service trust assessment and ADM safety telemetry."
   },
   "servers": [
-    { "url": "https://aitrustgateway-97n0puz9.b4a.run", "description": "Back4App demo" },
+    { "url": "https://<trust-gateway-choreo-public-url>", "description": "Choreo production" },
     { "url": "http://localhost:8080", "description": "Local gateway" }
   ],
   "security": [{ "ApiKeyAuth": [] }],

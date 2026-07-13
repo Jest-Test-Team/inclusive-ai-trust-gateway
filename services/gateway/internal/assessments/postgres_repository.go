@@ -34,7 +34,8 @@ func (r *PostgresRepository) Create(ctx context.Context, a Assessment) error {
 		INSERT INTO use_cases (id, name, domain, description, sdg_tags, target_users, ai_capabilities, safeguards, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 		useCaseID, a.UseCase.Name, a.UseCase.Domain, a.UseCase.Summary,
-		a.UseCase.SDGs, a.UseCase.TargetUsers, a.UseCase.AICapabilities, a.UseCase.Safeguards, a.CreatedAt,
+		orEmpty(a.UseCase.SDGs), orEmpty(a.UseCase.TargetUsers),
+		orEmpty(a.UseCase.AICapabilities), orEmpty(a.UseCase.Safeguards), a.CreatedAt,
 	)
 	if err != nil {
 		return err
@@ -44,7 +45,7 @@ func (r *PostgresRepository) Create(ctx context.Context, a Assessment) error {
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO personas (use_case_id, label, age_group, region, needs, barriers)
 			VALUES ($1, $2, $3, $4, $5, $6)`,
-			useCaseID, p.Label, p.AgeGroup, p.Region, p.Needs, p.Barriers,
+			useCaseID, p.Label, p.AgeGroup, p.Region, orEmpty(p.Needs), orEmpty(p.Barriers),
 		); err != nil {
 			return err
 		}
@@ -172,6 +173,15 @@ func scanAssessments(ctx context.Context, pool *pgxpool.Pool, rows pgx.Rows) ([]
 		}
 	}
 	return list, sourceRows.Err()
+}
+
+// orEmpty prevents nil slices from encoding as SQL NULL — the schema's
+// array columns are NOT NULL DEFAULT '{}'.
+func orEmpty(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
 }
 
 var _ Repository = (*PostgresRepository)(nil)

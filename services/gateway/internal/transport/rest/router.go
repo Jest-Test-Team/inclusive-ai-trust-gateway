@@ -6,6 +6,7 @@ package rest
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -114,6 +115,7 @@ func (s *Server) createAssessment(w http.ResponseWriter, r *http.Request) {
 		commands.CreateAssessment{UseCase: req.ToDomain(), SafetySignals: defaultSafetySignals},
 	)
 	if err != nil {
+		slog.Error("create assessment failed", "err", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "assessment failed"})
 		return
 	}

@@ -7,6 +7,8 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/adm"
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/assessments"
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/assessments/commands"
@@ -54,12 +56,10 @@ func New(cfg config.Config) *App {
 		ctx := context.Background()
 		if pool, err := postgres.Connect(ctx, cfg.DatabaseURL); err != nil {
 			slog.Warn("postgres unavailable, using in-memory repositories", "err", err)
+		} else if migrateErr := migrateIfEnabled(ctx, cfg, pool); migrateErr != nil {
+			slog.Error("postgres migrations failed, using in-memory repositories", "err", migrateErr)
+			pool.Close()
 		} else {
-			if cfg.AutoMigrate {
-				if err := postgres.Migrate(ctx, pool); err != nil {
-					slog.Error("postgres migrations failed", "err", err)
-				}
-			}
 			repo = assessments.NewPostgresRepository(pool)
 			store = adm.NewPostgresStore(pool)
 			slog.Info("postgres repositories active")
@@ -76,4 +76,11 @@ func New(cfg config.Config) *App {
 	cqrs.Register[adm.ListEvents, []adm.SafetyEvent](bus, adm.ListEventsHandler{Store: store})
 
 	return &App{Cfg: cfg, Bus: bus, Events: events, Webhooks: hooks}
+}
+
+func migrateIfEnabled(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) error {
+	if !cfg.AutoMigrate {
+		return nil
+	}
+	return postgres.Migrate(ctx, pool)
 }

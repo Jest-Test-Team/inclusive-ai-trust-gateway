@@ -1,1 +1,66 @@
+ACCORDING TO 數位發展部今(2)日舉辦「2026總統盃黑客松國際松」徵件記者會，正式向全球創新團隊發出召集令，邀請各界好手於7月31日截止前踴躍提交創新解方。本屆競賽主題訂為「Digital Inclusion in the AI Era」（數位共好：打造AI新未來），鼓勵參賽者以數位科技與AI應用為基礎，思考如何降低科技使用門檻，讓更多人能公平參與數位社會，共享AI發展所帶來的便利與成果。
+數位發展部林宜敬部長表示，面對AI快速發展與數位科技深度融入日常生活，全球各國皆積極思考如何善用數位工具，以提升公共服務效能、促進社會共好，並回應人民生活中的實際需求。總統盃黑客松國際松期望透過這個國際競賽平台，匯聚全球創新團隊的智慧，激發更多結合AI技術與創新思維的提案，打造出具公共價值與實際應用潛力的解方，並促進成果持續落地擴散。
+本次記者會特別邀請歷屆卓越團隊「回娘家」，包括GreenhopeBCTW、CropNow、Beyond Hearing等團隊，分享參賽後的發展進程與實際應用經驗 ，充分體現國際松不僅是一場競賽，更是推動創新解方持續成長與擴散的重要起點。活動現場也邀集聖克里斯多福及尼維斯 范東亞大使、貝里斯 梅凱瑟大使、印度台北協會 偉敏慧代理會長、阿曼王國台北商務辦事處 木罕莫德‧阿巴拉米處長、匈牙利貿易辦事處 于靜代表、駐臺北韓國代表部 高尚郁代理代表等共15國駐臺使節與代表，以及國家科學及技術委員會張振豪執行秘書、外交部陳明祺政務次長、農業部劉頂立高級分析師等部會代表共同出席，為新一屆徵件注入更廣闊的國際視野與合作契機。
+總統盃黑客松國際松為我國主辦的指標性國際賽事，由總統府指導、行政院主辦、數發部執行，自2019年發起迄今已邁入第8屆，近三年更吸引超過55個國家與地區的團隊熱烈響應。林部長誠摯鼓勵來自不同領域、不分年齡與國籍的夥伴，從自身關注的議題出發，結合AI應用提出創新提案，把握機會參與這場科技盛事。
+ON https://moda.gov.tw/press/press-releases/20076
+and https://presidential-hackathon.taiwan.gov.tw/en/international-track/
+CHALLENGE THEME
+Digital Inclusion in the AI Era
+Promoting Digital Inclusion: Bringing AI and digital technologies closer to everyone by enabling people of different ages, regions, and needs to access technology and participate in digital services on equal footing, thereby narrowing the digital divide and ensuring all can share in the benefits of the intelligent era
+Building Smarter Services: Harnessing AI, data analytics, and digital tools to enhance the efficiency, convenience, and safety of public services and everyday living environments, addressing diverse needs across education, care services, governance, disaster prevention, and beyond, while shaping a smarter and more responsive future for society.
+Work details
+Name of work：
+Introduction to the work：
+Corresponding with SDGs :
+Intent to resolve the issue and its significance：
+Relevant parties and their respective roles：
+Description of the solution’s functionality：
+Differences from existing alternatives：
+Anticipated outcome：
+Developmental stage：
+Future planning
+Open data sources
+Open Source Software Design (Does Not Affect Project Score)
+Does the project use open-source software for application design?：
+If so, what percentage of the project uses open-source software?： none
+Is the project willing to allow for open source use in the future?：
+Use open data sources：
+Recommendations for modifications to open data：
+Provision of open data：
+Work promotion and planning：
+Partners negotiated：
+Expected cooperative units：
+Has the proposal been established as a company?：
+Link to the work or display video：
+If your work has won an award or is already on the market, please descript how it differs from this proposal：
+Current validation field：
+Current verification results：Z
+DO /Users/dennis_leedennis_lee/Documents/GitHub/Agentic Defense Matrix (ADM) and /Users/dennis_leedennis_lee/Documents/GitHub/Ethic-Latex
+ are suitable for this hackthon?
 
+ Best fit: Ethic-Latex
+I would choose [Ethic-Latex (line 1)](/Users/dennis_leedennis_lee/Documents/GitHub/Ethic-Latex/README.md:1) as the main hackathon proposal, if you reframe it away from “Ethical Riemann Hypothesis” theory and toward a practical public-service tool:
+Recommended framing: “Inclusive AI Decision Auditor for Public Services”
+Why it fits:
+Directly supports Digital Inclusion in the AI Era by auditing whether AI/public decision systems create unequal outcomes.
+Has open/public dataset hooks such as Adult Income, COMPAS, UCI Student Performance, and fairness/ethics case studies.
+Has runnable surfaces: ERH engine, REST/gRPC service, AI gateway, UEBA/security app, SDKs, frontend/backend.
+Can map well to SDGs: SDG 10 Reduced Inequalities, SDG 16 Peace, Justice and Strong Institutions, SDG 9 Industry/Innovation.
+Main risk:
+The project is too broad and theoretical. For the hackathon, submit only one clean use case: “help public agencies test whether AI-assisted services are fair, explainable, and safe for vulnerable groups.”
+Second fit: ADM
+[Agentic Defense Matrix (line 1)](/Users/dennis_leedennis_lee/Documents/GitHub/Agentic Defense Matrix (ADM\)/README.md:1) is also suitable, but more indirectly.
+Best framing:
+“Safe AI Agent Infrastructure for Inclusive Public Services”
+Why it fits:
+The official theme includes “Building Smarter Services” using AI/data/digital tools to improve public service safety and convenience.
+ADM has strong feasibility: live demo, dashboard, API, red-team corpus, latency tests, containment architecture.
+It is useful if Taiwan or partner governments deploy AI agents for citizen services, disaster response, education, or care services.
+Main risk:
+By itself, ADM reads as cybersecurity/AISec, not digital inclusion. You would need to explain that safe, trustworthy AI agents are a prerequisite for vulnerable citizens, local governments, and public agencies to adopt AI confidently.
+My Recommendation
+Submit Ethic-Latex as the main work, and optionally integrate ADM as the safety layer.
+A stronger combined proposal could be:
+Name of work: Inclusive AI Trust Gateway
+One-line concept: A public-service AI evaluation and protection platform that audits fairness, explains risk, and protects AI agents from misuse so governments can deploy AI services safely and inclusively.
+That combination hits both official challenge pillars: digital inclusion plus smarter/s safer public services. The hackathon page says proposals are judged on feasibility, innovation, social impact, and later implementation/verification, and it requires English submission by July 31, 2026, 5:00 PM GMT+8. Sources: moda press release, International Track.

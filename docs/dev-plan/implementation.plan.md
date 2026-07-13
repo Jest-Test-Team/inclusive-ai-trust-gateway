@@ -6,7 +6,7 @@ Deadline: **July 31, 2026, 17:00 GMT+8** — preliminary judging: Feasibility 40
 
 Sources inspected: `hint.txt`, [MODA press release 20076](https://moda.gov.tw/press/press-releases/20076), [international-track rules](https://presidential-hackathon.taiwan.gov.tw/en/international-track/), [UCP protocol deep-dive](https://www.agenticcommerceguide.com/blog/the-ucp-protocol-a-comprehensive-technical-deep-dive), plus full source inspection of both engine repos (§2).
 
-> **v2 supersedes v1.** After a gap review and a decision round with the project owner, this revision commits to: real ADM + ERH container integration, a Next.js/Expo monorepo, a Go gateway, and **all seven interface protocols live by July 31**. v1's hosting decisions (Back4App containers, Vercel FE, Neon Postgres, Cloudflare) still stand.
+> **v2 supersedes v1.** After a gap review and a decision round with the project owner, this revision commits to: real ADM + ERH container integration, a Next.js/Expo monorepo, a Go gateway, and **all seven interface protocols live by July 31**. v1's hosting decisions (Vercel FE, Neon Postgres, Cloudflare) still stand; backend containers deploy on **Choreo** (see `infra/choreo/README.md`).
 
 ---
 
@@ -19,7 +19,7 @@ Sources inspected: `hint.txt`, [MODA press release 20076](https://moda.gov.tw/pr
 | D3 | Frontend | **Next.js web ships Jul 31**; Expo React Native scaffolded now, ships post-submission (finals adds Implementation 30% in Oct) |
 | D4 | Gateway framework | **Go 1.23** (chi router + ent ORM) — owner override 2026-07-12: *backend must be Go or Rust, not NestJS*; Go chosen for alignment with the ADM codebase (same language, gRPC/buf toolchain, deploy patterns) |
 | D5 | UCP theme fit | **Inclusive-commerce demo scenario** (§5.3) |
-| D6 | MQTT broker + Redis in prod | **Back4App containers first**; fall back to Upstash Redis + HiveMQ Cloud if Back4App proves unworkable |
+| D6 | MQTT broker + Redis in prod | **Choreo three-container limit** — gateway uses in-process/Upstash + HiveMQ; ADM embeds Redis |
 | D7 | Database | **Neon Postgres**; ORM is **ent** with Atlas-generated SQL migrations (Prisma fell with NestJS — it is TypeScript-only); **Supabase Postgres as backup** (§7.3) |
 | D8 | Repo shape | **Full pnpm/Turborepo monorepo; the Vite dashboard is retired** after its logic is ported to `packages/shared` |
 | D9 | tRPC requirement | **Replaced by Connect-RPC** (connectrpc.com) — tRPC cannot run in a Go backend; Connect-RPC gives the same end-to-end type-safety via schema-first codegen (native Go server, generated TypeScript client for apps/web) |
@@ -198,7 +198,7 @@ services:
 | I | UCP commerce scenario | trust-gated agent purchase + containment demo | Jul 26 |
 | J | apps/mobile scaffold | Expo shell + shared client | Jul 27 |
 | K | Robot suites for new surfaces + CI update | all suites green locally + CI | Jul 28 |
-| L | Deploy: Back4App + Vercel + Neon/Supabase + Cloudflare | live URLs | Jul 29 |
+| L | Deploy: Choreo + Vercel + Neon/Supabase + Cloudflare | live URLs | Jul 29 |
 | M | Submission package + demo video | docs/hackathon-submission.md final | **Jul 30** |
 
 Commit convention: one commit minimum per subtask, more per coherent slice.

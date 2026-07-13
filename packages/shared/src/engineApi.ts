@@ -1,4 +1,4 @@
-// Clients for the two engines deployed as separate Back4App container apps:
+// Clients for the two engines deployed as separate Choreo Service components:
 // the ADM stack (agent-safety telemetry, Go) and the ERH engine (fairness /
 // ethical-error evaluation, Python). Browser and mobile code reaches them
 // through the web app's /api/adm and /api/erh proxies (or directly via
@@ -15,7 +15,7 @@ export interface ServiceEndpoints {
 /**
  * Derives the ADM/ERH proxy URLs from a gateway base URL that points at the
  * web app's /api/gateway proxy (the Vercel deployment). Direct gateway URLs
- * (e.g. a Back4App host) have no sibling proxies, so adm/erh stay empty and
+ * (e.g. a Choreo gateway URL) have no sibling proxies, so adm/erh stay empty and
  * callers should use explicit env overrides instead.
  */
 export function deriveServiceEndpoints(gatewayBaseURL: string): ServiceEndpoints {

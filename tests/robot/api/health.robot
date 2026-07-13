@@ -1,7 +1,7 @@
 *** Settings ***
 Documentation     Liveness checks for the gateway API.
 ...
-...               Runs against any deployment tier (local, Back4App staging,
+...               Runs against any deployment tier (local, Choreo staging,
 ...               Cloudflare-fronted production) via the BASE_URL variable.
 Resource          ../resources/common.resource
 Suite Setup       Create Gateway Session

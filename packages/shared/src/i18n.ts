@@ -117,7 +117,7 @@ const sdgZh: Record<string, Pick<SdgPriority, "name" | "repoCanDo" | "proofPath"
     name: "產業創新與基礎建設",
     repoCanDo: "提供跨 REST、GraphQL、WebSocket、Connect-RPC、MCP、MQTT 與 UCP 的可重用 AI 信任基礎設施。",
     proofPath: "七種協定介接同一個 CQRS 信任核心",
-    implementation: ["共用閘道客戶端", "多服務 Back4App 部署根", "Connect-RPC 方法", "MCP 工具"],
+    implementation: ["共用閘道客戶端", "多服務 Choreo 部署", "Connect-RPC 方法", "MCP 工具"],
   },
   "SDG 11": {
     name: "永續城市與社區",

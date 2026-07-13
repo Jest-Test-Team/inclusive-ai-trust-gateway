@@ -31,7 +31,7 @@ demo; true logical replication is a post-finals item.
 ## Failover
 
 1. Confirm Neon outage (status.neon.tech, `pg_isready`).
-2. In Back4App, change the `trust-gateway` app's `DATABASE_URL` env var to
+2. In Choreo, change the `trust-gateway` component's `DATABASE_URL` env var to
    the Supabase pooled connection string; redeploy (env-only, no build).
 3. Verify `GET /healthz` and one `POST /v1/assessments` round-trip.
 4. After Neon recovers: dump Supabase → restore to Neon (reverse of the
