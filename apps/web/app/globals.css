@@ -1499,6 +1499,13 @@ li + li {
   color: var(--ink-2);
 }
 
+.bc-head-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .bc-conn {
   display: inline-flex;
   align-items: center;
