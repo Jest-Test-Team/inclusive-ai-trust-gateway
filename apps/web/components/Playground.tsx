@@ -432,9 +432,11 @@ export function Playground({ locale }: { locale: Locale }) {
         <div className="playground-table-wrap">
           <div className="api-header">
             <h3>{t.recentTitle}</h3>
-            <button type="button" className="playground-send" disabled={reassessing} onClick={() => void reassessLegacyRows()}>
-              {reassessing ? t.reassessing : t.reassessStale}
-            </button>
+            <div className="api-actions">
+              <button type="button" disabled={reassessing} onClick={() => void reassessLegacyRows()}>
+                {reassessing ? t.reassessing : t.reassessStale}
+              </button>
+            </div>
           </div>
           {reassessNote && <p className="api-empty">{reassessNote}</p>}
           <table className="playground-table">
