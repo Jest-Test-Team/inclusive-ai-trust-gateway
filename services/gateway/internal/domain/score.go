@@ -39,27 +39,49 @@ const (
 	RiskHigh   RiskLabel = "High"
 )
 
-// RiskLabelFor mirrors the banding used by the original MVP dashboard:
-// high inclusion with few unresolved gaps is Low risk.
-func RiskLabelFor(inclusion Score, unresolvedGaps int) RiskLabel {
+// RiskInputs carries the fallback-model signals that feed fairness risk.
+type RiskInputs struct {
+	Inclusion         Score
+	UnresolvedGaps    int
+	TotalBarriers     int
+	OpenDataReadiness Score
+}
+
+// RiskScore converts structural inclusion gaps into a 0-100 numeric risk
+// exposed by the API (higher = riskier). Inclusion saturation no longer
+// collapses every well-modeled use case to the same gap-only score.
+func RiskScore(inputs RiskInputs) Score {
+	inclusionDeficit := float64(100-inputs.Inclusion.Int()) * 0.5
+
+	gapPenalty := inputs.UnresolvedGaps * 8
+	if gapPenalty < 0 {
+		gapPenalty = 0
+	}
+	if gapPenalty > 48 {
+		gapPenalty = 48
+	}
+
+	barrierLoad := int(float64(inputs.TotalBarriers)*2.5 + 0.5)
+	if barrierLoad > 25 {
+		barrierLoad = 25
+	}
+
+	openDataResidual := float64(100-inputs.OpenDataReadiness.Int()) * 0.15
+
+	return ClampScore(inclusionDeficit + float64(gapPenalty) + float64(barrierLoad) + openDataResidual)
+}
+
+// RiskLabelFor maps a numeric risk score to Low / Medium / High bands,
+// aligned with the ERH engine client thresholds.
+func RiskLabelFor(risk Score) RiskLabel {
 	switch {
-	case inclusion >= 82 && unresolvedGaps <= 2:
+	case risk.Int() <= 33:
 		return RiskLow
-	case inclusion >= 64:
+	case risk.Int() <= 66:
 		return RiskMedium
 	default:
 		return RiskHigh
 	}
-}
-
-// RiskScore converts the band inputs into a 0-100 numeric risk exposed by the
-// API (higher = riskier), so clients can chart it alongside the other scores.
-func RiskScore(inclusion Score, unresolvedGaps int) Score {
-	penalty := unresolvedGaps * 4
-	if penalty > 40 {
-		penalty = 40
-	}
-	return ClampScore(float64(100-inclusion.Int()) * 0.6 + float64(penalty))
 }
 
 // Severity classifies ADM safety events.

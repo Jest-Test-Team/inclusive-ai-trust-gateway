@@ -22,6 +22,9 @@ func main() {
 	cfg := config.Load()
 	a := app.New(cfg)
 	srv := rest.NewServer(a.Bus, cfg.APIKey)
+	if cfg.ERHServiceURL != "" && a.ERHClient != nil {
+		srv.WithERHHealth(cfg.ERHServiceURL, a.ERHClient.Ping)
+	}
 
 	srv.WS = wst.Handler{Bus: a.Events, APIKey: cfg.APIKey}
 

@@ -30,7 +30,21 @@ export interface AssessmentResponse {
   createdAt: string;
 }
 
-export interface SafetyEvent {
+export interface GatewayHealth {
+  status: string;
+  erh?: {
+    configured: boolean;
+    reachable: boolean;
+    evaluator: "erh-engine" | "resilient" | "deterministic-fallback";
+    url?: string;
+    error?: string;
+  };
+}
+
+export interface ReassessStaleResponse {
+  updated: number;
+  items: AssessmentResponse[];
+}
   id: string;
   eventType: string;
   severity: string;
@@ -118,13 +132,27 @@ export function createGatewayClient(config: GatewayClientConfig) {
     websocketURL: baseURL ? `${baseURL.replace(/^http/, "ws")}/ws?api_key=${encodeURIComponent(apiKey)}` : "",
 
     health() {
-      return request<{ status: string }>("/healthz", { method: "GET" }, false);
+      return request<GatewayHealth>("/healthz", { method: "GET" }, false);
     },
 
     createAssessment(useCase: PublicServiceUseCase) {
       return request<AssessmentResponse>("/v1/assessments", {
         method: "POST",
         body: JSON.stringify({ useCase: toRestUseCase(useCase) }),
+      });
+    },
+
+    reassessAssessment(id: string) {
+      return request<AssessmentResponse>(`/v1/assessments/${encodeURIComponent(id)}/reassess`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+    },
+
+    reassessStaleAssessments() {
+      return request<ReassessStaleResponse>("/v1/assessments/reassess-stale", {
+        method: "POST",
+        body: JSON.stringify({}),
       });
     },
 

@@ -43,11 +43,18 @@ func (Fallback) score(uc UseCase, signals []SafetySignal) Result {
 	)
 
 	unresolvedGaps := totalBarriers - len(uc.Safeguards)
+	riskInputs := domain.RiskInputs{
+		Inclusion:         inclusion,
+		UnresolvedGaps:    unresolvedGaps,
+		TotalBarriers:     totalBarriers,
+		OpenDataReadiness: openData,
+	}
+	fairnessRisk := domain.RiskScore(riskInputs)
 
 	return Result{
 		InclusionScore:       inclusion.Int(),
-		FairnessRiskScore:    domain.RiskScore(inclusion, unresolvedGaps).Int(),
-		FairnessRiskLabel:    string(domain.RiskLabelFor(inclusion, unresolvedGaps)),
+		FairnessRiskScore:    fairnessRisk.Int(),
+		FairnessRiskLabel:    string(domain.RiskLabelFor(fairnessRisk)),
 		OpenDataReadiness:    openData.Int(),
 		AgentSafetyReadiness: agentSafety.Int(),
 		Evaluator:            "deterministic-fallback",
