@@ -39,6 +39,16 @@ export interface SafetyEvent {
   receivedAt: string;
 }
 
+/** GET /v1/dashboard — cumulative, all-time trust metrics from Postgres. */
+export interface DashboardSnapshot {
+  totalAssessments: number;
+  averageInclusion: number;
+  highRiskCount: number;
+  recent: AssessmentResponse[];
+  admEventsByType: Record<string, number>;
+  admEventsTotal: number;
+}
+
 export interface LiveSafetyEvent {
   id: string;
   eventType: string;
@@ -127,7 +137,7 @@ export function createGatewayClient(config: GatewayClientConfig) {
     },
 
     dashboard() {
-      return request<Record<string, unknown>>("/v1/dashboard");
+      return request<DashboardSnapshot>("/v1/dashboard");
     },
 
     ingestSafetyEvent(event: { eventType: string; severity: string; detail: unknown; sessionId?: string }) {

@@ -1153,6 +1153,97 @@ li + li {
 }
 
 /* ---------------------------------------------------------------------------
+   Impact / quantifiable-benefits board
+--------------------------------------------------------------------------- */
+.impact-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.impact-tile-good {
+  border-left: 3px solid var(--good);
+}
+.impact-tile-warning {
+  border-left: 3px solid var(--warning);
+}
+.impact-tile-critical {
+  border-left: 3px solid var(--critical);
+}
+
+.impact-tile-good .stat-value {
+  color: var(--good-ink);
+}
+.impact-tile-warning .stat-value {
+  color: var(--warning-ink);
+}
+.impact-tile-critical .stat-value {
+  color: var(--critical-ink);
+}
+
+.impact-bars {
+  margin-top: 18px;
+}
+
+.impact-bars-title {
+  margin: 0 0 10px;
+  color: var(--ink-2);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.impact-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.impact-bar-name {
+  width: 150px;
+  flex: none;
+  font-size: 0.88rem;
+  color: var(--ink-2);
+}
+
+.impact-bar-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.impact-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--brand-500);
+}
+
+.impact-bar-count {
+  width: 48px;
+  flex: none;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.impact-source {
+  margin: 14px 0 0;
+  color: var(--ink-3);
+  font-size: 0.8rem;
+}
+
+@media (max-width: 680px) {
+  .impact-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---------------------------------------------------------------------------
    ERH audit terminal
 --------------------------------------------------------------------------- */
 .erh-term {

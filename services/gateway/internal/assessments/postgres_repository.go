@@ -71,6 +71,14 @@ func (r *PostgresRepository) Create(ctx context.Context, a Assessment) error {
 	return tx.Commit(ctx)
 }
 
+func (r *PostgresRepository) Count(ctx context.Context) (int, error) {
+	var n int
+	if err := r.pool.QueryRow(ctx, `SELECT count(*) FROM assessments`).Scan(&n); err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
 func (r *PostgresRepository) Get(ctx context.Context, id string) (Assessment, error) {
 	rows, err := r.pool.Query(ctx, assessmentQuery+` WHERE a.id = $1`, id)
 	if err != nil {

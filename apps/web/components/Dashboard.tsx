@@ -29,6 +29,7 @@ import { Playground } from "./Playground";
 import { AttackSimulator } from "./AttackSimulator";
 import { ErhAuditLog } from "./ErhAuditLog";
 import { OpenDataPanel } from "./OpenDataPanel";
+import { ImpactBoard } from "./ImpactBoard";
 
 const copy = {
   en: {
@@ -385,6 +386,7 @@ export function Dashboard() {
           <p>{t.consoleIntro}</p>
         </div>
         <div className="console-stack">
+          <ImpactBoard locale={locale} />
           <ApiSurfacePanel useCase={selected} t={t} />
           <AttackSimulator locale={locale} />
           <Playground locale={locale} />

@@ -15,6 +15,9 @@ type Repository interface {
 	Create(ctx context.Context, a Assessment) error
 	Get(ctx context.Context, id string) (Assessment, error)
 	List(ctx context.Context, limit int) ([]Assessment, error)
+	// Count returns the all-time number of stored assessments (not limited to
+	// a page), powering the dashboard's cumulative metrics.
+	Count(ctx context.Context) (int, error)
 }
 
 type MemoryRepository struct {
@@ -43,6 +46,12 @@ func (r *MemoryRepository) Get(_ context.Context, id string) (Assessment, error)
 		return Assessment{}, ErrNotFound
 	}
 	return a, nil
+}
+
+func (r *MemoryRepository) Count(_ context.Context) (int, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return len(r.order), nil
 }
 
 func (r *MemoryRepository) List(_ context.Context, limit int) ([]Assessment, error) {

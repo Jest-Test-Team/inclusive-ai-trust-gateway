@@ -30,6 +30,25 @@ func (s *PostgresStore) Append(ctx context.Context, e SafetyEvent) error {
 	return err
 }
 
+func (s *PostgresStore) CountByType(ctx context.Context) (map[string]int, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT event_type, count(*) FROM safety_events GROUP BY event_type`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]int{}
+	for rows.Next() {
+		var eventType string
+		var n int
+		if err := rows.Scan(&eventType, &n); err != nil {
+			return nil, err
+		}
+		out[eventType] = n
+	}
+	return out, rows.Err()
+}
+
 func (s *PostgresStore) Recent(ctx context.Context, limit int) ([]SafetyEvent, error) {
 	if limit <= 0 {
 		limit = 50
