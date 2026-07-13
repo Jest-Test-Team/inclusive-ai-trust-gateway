@@ -73,3 +73,48 @@ func TestDiscoveryFiltersCatalog(t *testing.T) {
 		t.Fatalf("unexpected discovery: %+v (%s)", products, trace.Verdict)
 	}
 }
+
+type recordingStore struct {
+	sessions []Session
+	events   []TraceEvent
+	statuses []string
+}
+
+func (r *recordingStore) SaveSession(_ context.Context, s Session) error {
+	r.sessions = append(r.sessions, s)
+	return nil
+}
+
+func (r *recordingStore) UpdateSessionStatus(_ context.Context, id, status string) error {
+	r.statuses = append(r.statuses, id+":"+status)
+	return nil
+}
+
+func (r *recordingStore) AppendEvent(_ context.Context, e TraceEvent) error {
+	r.events = append(r.events, e)
+	return nil
+}
+
+func TestServicePersistsSessionAndEvents(t *testing.T) {
+	rec := &recordingStore{}
+	s := NewServiceWithStore(eventbus.NewMemory(), rec)
+	sess, err := s.OpenSession(context.Background(), "agent-1", "persona-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rec.sessions) != 1 || rec.sessions[0].ID != sess.ID {
+		t.Fatalf("session not persisted: %+v", rec.sessions)
+	}
+	trace, _ := s.CheckoutIntent(context.Background(), sess.ID, "CARE-004", 1)
+	if trace.Verdict != VerdictBlocked {
+		t.Fatalf("verdict = %s, want blocked", trace.Verdict)
+	}
+	// session.open + checkout.intent
+	if len(rec.events) < 2 {
+		t.Fatalf("expected at least 2 persisted events, got %d", len(rec.events))
+	}
+	last := rec.events[len(rec.events)-1]
+	if last.Action != "checkout.intent" || last.Verdict != VerdictBlocked {
+		t.Fatalf("last event = %+v", last)
+	}
+}

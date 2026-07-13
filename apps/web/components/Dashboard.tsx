@@ -33,13 +33,29 @@ const copy = {
     title: "Inclusive AI Trust Gateway",
     intro:
       "A public-service AI evaluation and protection platform that audits fairness, explains risk, and protects AI agents from misuse so governments can deploy AI services safely and inclusively.",
+    heroChips: ["ERH fairness engine", "ADM agent safety", "Trust-gated UCP commerce", "Open-data evidence"],
+    nav: [
+      ["overview", "Overview"],
+      ["scenarios", "Scenarios"],
+      ["evidence", "Trust Evidence"],
+      ["sdg", "SDGs"],
+      ["console", "Live Console"],
+    ],
     scenarios: "Service Scenarios",
+    scenariosIntro:
+      "Pick a public-service scenario to see who it serves, what safeguards it needs, and how the trust scores react.",
     targetUsers: "Target Users",
     safeguards: "Safeguards",
     purposeEyebrow: "What this repo does",
     purposeTitle: "One trust core for public-service AI",
     purpose:
       "The gateway turns policy concerns into testable API evidence: inclusion scoring, fairness-risk checks, open-data readiness, ADM agent-safety telemetry, and trust-gated UCP commerce flows.",
+    consoleEyebrow: "Live Console",
+    consoleTitle: "Talk to the running gateway",
+    consoleIntro:
+      "Everything below hits live services: probe the gateway APIs, replay demo requests in the playground, and check the deployed ADM and ERH engine containers.",
+    evidenceEyebrow: "Trust Evidence",
+    evidenceTitle: "How the two engines back the scores",
     apiTitle: "Live Integration Status",
     swagger: "Swagger",
     runCheck: "Run API check",
@@ -60,8 +76,9 @@ const copy = {
     barriers: "Barriers",
     metricInclusion: "Inclusion score",
     metricFairness: "Fairness risk",
-    metricOpenData: "Open data",
-    metricAgentSafety: "Agent safety",
+    metricOpenData: "Open data readiness",
+    metricAgentSafety: "Agent safety readiness",
+    riskLabels: { Low: "Low", Medium: "Medium", High: "High" } as Record<string, string>,
     erhRoleDetail:
       "Converts service outcomes into comparable samples, scores fairness and ethical-error growth, and surfaces where AI decisions may structurally exclude vulnerable groups.",
     admWaiting: "Connected to the gateway - waiting for live ADM events.",
@@ -78,19 +95,37 @@ const copy = {
     erhResult: "ERH verdict for this scenario",
     erhHealthy: "within the ERH bound",
     erhUnhealthy: "structural error growth detected",
+    liveDefense: "Live Defense",
+    footerLeft: "Inclusive AI Trust Gateway — hackathon MVP",
+    footerRight: "ERH + ADM engines · REST / WS / Connect-RPC / GraphQL / MQTT / MCP / UCP",
   },
   "zh-TW": {
     eyebrow: "2026 總統盃黑客松 - 國際組",
     title: "包容式 AI 信任閘道",
     intro:
       "一個面向公共服務的 AI 評估與防護平台，用 API 證據檢查公平性、解釋風險，並保護 AI 代理不被濫用。",
+    heroChips: ["ERH 公平性引擎", "ADM 代理安全", "UCP 交易信任把關", "開放資料佐證"],
+    nav: [
+      ["overview", "總覽"],
+      ["scenarios", "服務情境"],
+      ["evidence", "信任證據"],
+      ["sdg", "SDG 對應"],
+      ["console", "即時主控台"],
+    ],
     scenarios: "服務情境",
+    scenariosIntro: "選擇一個公共服務情境，查看服務對象、所需防護措施，以及信任分數的變化。",
     targetUsers: "目標使用者",
     safeguards: "防護措施",
     purposeEyebrow: "這個 repo 能做什麼",
     purposeTitle: "公共服務 AI 的信任核心",
     purpose:
       "此閘道把政策疑慮轉成可測試的 API 證據：包容性分數、公平風險、開放資料準備度、ADM 代理安全事件，以及 UCP 交易信任把關。",
+    consoleEyebrow: "即時主控台",
+    consoleTitle: "直接操作運行中的閘道",
+    consoleIntro:
+      "以下皆為即時服務：檢查閘道 API 狀態、在遊樂場重放示範請求，並查看已部署的 ADM 與 ERH 引擎容器。",
+    evidenceEyebrow: "信任證據",
+    evidenceTitle: "兩個引擎如何支撐這些分數",
     apiTitle: "即時 API 整合狀態",
     swagger: "Swagger 文件",
     runCheck: "重新檢查 API",
@@ -111,8 +146,9 @@ const copy = {
     barriers: "障礙",
     metricInclusion: "包容性分數",
     metricFairness: "公平風險",
-    metricOpenData: "開放資料",
-    metricAgentSafety: "代理安全",
+    metricOpenData: "開放資料準備度",
+    metricAgentSafety: "代理安全準備度",
+    riskLabels: { Low: "低", Medium: "中", High: "高" } as Record<string, string>,
     erhRoleDetail:
       "將服務結果轉為可比較的樣本，評估公平性與倫理誤差成長，並指出 AI 決策可能在結構上排除弱勢族群之處。",
     admWaiting: "已連線至閘道，等待即時 ADM 事件。",
@@ -128,8 +164,11 @@ const copy = {
     erhResult: "此情境的 ERH 評估結果",
     erhHealthy: "在 ERH 健康界線內",
     erhUnhealthy: "偵測到結構性錯誤成長",
+    liveDefense: "即時防禦",
+    footerLeft: "包容式 AI 信任閘道 — 黑客松 MVP",
+    footerRight: "ERH + ADM 引擎 · REST / WS / Connect-RPC / GraphQL / MQTT / MCP / UCP",
   },
-} satisfies Record<Locale, Record<string, string | string[][]>>;
+};
 
 type Copy = (typeof copy)["en"];
 
@@ -148,157 +187,246 @@ export function Dashboard() {
 
   return (
     <>
-      <section className="assessment-band">
-        <div className="assessment-copy">
-          <div className="hero-tools" aria-label="Language">
-            <button className={locale === "en" ? "is-active" : ""} onClick={() => setLocale("en")}>
-              EN
-            </button>
-            <button className={locale === "zh-TW" ? "is-active" : ""} onClick={() => setLocale("zh-TW")}>
-              繁中
-            </button>
-          </div>
-          <p className="eyebrow">{t.eyebrow}</p>
-          <h1>{t.title}</h1>
-          <p>{t.intro}</p>
+      <header className="site-header">
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z" />
+              <path d="M9 12l2 2 4-4" />
+            </svg>
+          </span>
+          {t.title}
         </div>
-        <div className="metrics-grid">
-          <Metric label={t.metricInclusion} value={formatScore(assessment.inclusionScore)} tone="green" />
-          <Metric label={t.metricFairness} value={assessment.fairnessRisk} tone="amber" />
-          <Metric label={t.metricOpenData} value={formatScore(assessment.openDataReadiness)} tone="blue" />
-          <Metric label={t.metricAgentSafety} value={formatScore(assessment.agentSafetyReadiness)} tone="red" />
+        <nav className="site-nav" aria-label="Sections">
+          {t.nav.map(([id, label]) => (
+            <a key={id} href={`#${id}`}>
+              {label}
+            </a>
+          ))}
+          <a className="nav-live" href="/live">
+            ⚔️ {t.liveDefense}
+          </a>
+        </nav>
+        <div className="lang-toggle" role="group" aria-label="Language">
+          <button className={locale === "en" ? "is-active" : ""} onClick={() => setLocale("en")}>
+            EN
+          </button>
+          <button className={locale === "zh-TW" ? "is-active" : ""} onClick={() => setLocale("zh-TW")}>
+            繁中
+          </button>
         </div>
-      </section>
+      </header>
 
-      <section className="workspace">
-        <aside className="service-panel">
-          <h2>{t.scenarios}</h2>
-          <div className="service-tabs">
-            {localUseCases.map((useCase) => (
-              <button
-                key={useCase.id}
-                className={`service-tab ${useCase.id === selected.id ? "is-active" : ""}`}
-                onClick={() => setSelectedId(useCase.id)}
-              >
-                <span>{useCase.domain}</span>
-                {useCase.name}
-              </button>
-            ))}
-          </div>
-        </aside>
-
-        <section className="detail-panel">
-          <div className="detail-header">
-            <div>
-              <p className="eyebrow">{selected.domain}</p>
-              <h2>{selected.name}</h2>
-            </div>
-            <div className="sdg-row">
-              {selected.sdgs.map((sdg) => (
-                <span key={sdg}>{sdg}</span>
-              ))}
-            </div>
-          </div>
-          <p className="summary">{selected.summary}</p>
-
-          <div className="two-column">
-            <article>
-              <h3>{t.targetUsers}</h3>
-              <ul>
-                {selected.targetUsers.map((user) => (
-                  <li key={user}>{user}</li>
-                ))}
-              </ul>
-            </article>
-            <article>
-              <h3>{t.safeguards}</h3>
-              <ul>
-                {selected.safeguards.map((safeguard) => (
-                  <li key={safeguard}>{safeguard}</li>
-                ))}
-              </ul>
-            </article>
-          </div>
-
-          <div className="personas">
-            {selected.personas.map((persona) => (
-              <article className="persona-card" key={persona.id}>
-                <div>
-                  <h3>{persona.label}</h3>
-                  <p>
-                    {persona.ageGroup} - {persona.region}
-                  </p>
-                </div>
-                <dl>
-                  <dt>{t.needs}</dt>
-                  <dd>{persona.needs.join(", ")}</dd>
-                  <dt>{t.barriers}</dt>
-                  <dd>{persona.barriers.join(", ")}</dd>
-                </dl>
-              </article>
-            ))}
-          </div>
-        </section>
-      </section>
-
-      <section className="purpose-band">
-        <div>
-          <p className="eyebrow">{t.purposeEyebrow}</p>
-          <h2>{t.purposeTitle}</h2>
-          <p>{t.purpose}</p>
-        </div>
-        <div className="purpose-grid">
-          {t.purposeCards.map(([title, detail]) => (
-            <PurposeCard key={title} title={title} detail={detail} />
+      <section className="hero" id="overview">
+        <p className="eyebrow">{t.eyebrow}</p>
+        <h1>{t.title}</h1>
+        <p className="hero-intro">{t.intro}</p>
+        <div className="hero-chips">
+          {t.heroChips.map((chip) => (
+            <span key={chip}>{chip}</span>
           ))}
         </div>
       </section>
 
-      <section className="evidence-grid">
-        <article>
-          <h2>{t.erhRole}</h2>
-          <p>{t.erhRoleDetail}</p>
-          <ul>
-            {assessment.strengths.map((item) => (
-              <li key={item}>{item}</li>
+      <div className="kpi-strip">
+        <StatTile label={t.metricInclusion} score={assessment.inclusionScore} />
+        <RiskTile label={t.metricFairness} risk={assessment.fairnessRisk} riskLabels={t.riskLabels} />
+        <StatTile label={t.metricOpenData} score={assessment.openDataReadiness} />
+        <StatTile label={t.metricAgentSafety} score={assessment.agentSafetyReadiness} />
+      </div>
+
+      <section className="section" id="scenarios">
+        <div className="section-head">
+          <p className="eyebrow">{t.scenarios}</p>
+          <h2>{selected.name}</h2>
+          <p>{t.scenariosIntro}</p>
+        </div>
+        <div className="workspace">
+          <aside className="service-panel card">
+            <h3>{t.scenarios}</h3>
+            <div className="service-tabs">
+              {localUseCases.map((useCase) => (
+                <button
+                  key={useCase.id}
+                  className={`service-tab ${useCase.id === selected.id ? "is-active" : ""}`}
+                  onClick={() => setSelectedId(useCase.id)}
+                >
+                  <span>{useCase.domain}</span>
+                  {useCase.name}
+                </button>
+              ))}
+            </div>
+          </aside>
+
+          <section className="detail-panel card">
+            <div className="detail-header">
+              <div>
+                <p className="eyebrow">{selected.domain}</p>
+                <h2>{selected.name}</h2>
+              </div>
+              <div className="sdg-row">
+                {selected.sdgs.map((sdg) => (
+                  <span key={sdg}>{sdg}</span>
+                ))}
+              </div>
+            </div>
+            <p className="summary">{selected.summary}</p>
+
+            <div className="two-column">
+              <article>
+                <h3>{t.targetUsers}</h3>
+                <ul>
+                  {selected.targetUsers.map((user) => (
+                    <li key={user}>{user}</li>
+                  ))}
+                </ul>
+              </article>
+              <article>
+                <h3>{t.safeguards}</h3>
+                <ul>
+                  {selected.safeguards.map((safeguard) => (
+                    <li key={safeguard}>{safeguard}</li>
+                  ))}
+                </ul>
+              </article>
+            </div>
+
+            <div className="personas">
+              {selected.personas.map((persona) => (
+                <article className="persona-card" key={persona.id}>
+                  <div>
+                    <h3>{persona.label}</h3>
+                    <p>
+                      {persona.ageGroup} - {persona.region}
+                    </p>
+                  </div>
+                  <dl>
+                    <dt>{t.needs}</dt>
+                    <dd>{persona.needs.join(", ")}</dd>
+                    <dt>{t.barriers}</dt>
+                    <dd>{persona.barriers.join(", ")}</dd>
+                  </dl>
+                </article>
+              ))}
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="purpose-band card">
+          <div>
+            <p className="eyebrow">{t.purposeEyebrow}</p>
+            <h2>{t.purposeTitle}</h2>
+            <p>{t.purpose}</p>
+          </div>
+          <div className="purpose-grid">
+            {t.purposeCards.map(([title, detail]) => (
+              <PurposeCard key={title} title={title} detail={detail} />
             ))}
-          </ul>
-        </article>
-        <article>
-          <h2>{t.admRole}</h2>
-          <SafetyPanel locale={locale} t={t} />
-        </article>
-        <article>
-          <h2>{t.nextSteps}</h2>
-          <ul>
-            {assessment.nextSteps.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </article>
-        <article>
-          <h2>{t.knownGaps}</h2>
-          <ul>
-            {assessment.gaps.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </article>
+          </div>
+        </div>
+      </section>
+
+      <section className="section" id="evidence">
+        <div className="section-head">
+          <p className="eyebrow">{t.evidenceEyebrow}</p>
+          <h2>{t.evidenceTitle}</h2>
+        </div>
+        <div className="evidence-grid">
+          <article className="card">
+            <h2>{t.erhRole}</h2>
+            <p>{t.erhRoleDetail}</p>
+            <ul>
+              {assessment.strengths.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </article>
+          <article className="card">
+            <h2>{t.admRole}</h2>
+            <SafetyPanel locale={locale} t={t} />
+          </article>
+          <article className="card">
+            <h2>{t.nextSteps}</h2>
+            <ul>
+              {assessment.nextSteps.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </article>
+          <article className="card">
+            <h2>{t.knownGaps}</h2>
+            <ul>
+              {assessment.gaps.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </article>
+        </div>
       </section>
 
       <SdgPriorityPanel locale={locale} t={t} />
-      <ApiSurfacePanel useCase={selected} t={t} />
-      <Playground locale={locale} />
-      <EnginesPanel useCase={selected} t={t} />
+
+      <section className="section" id="console">
+        <div className="section-head">
+          <p className="eyebrow">{t.consoleEyebrow}</p>
+          <h2>{t.consoleTitle}</h2>
+          <p>{t.consoleIntro}</p>
+        </div>
+        <div className="console-stack">
+          <ApiSurfacePanel useCase={selected} t={t} />
+          <Playground locale={locale} />
+          <EnginesPanel useCase={selected} t={t} />
+        </div>
+      </section>
+
+      <footer className="site-footer">
+        <span>{t.footerLeft}</span>
+        <span>{t.footerRight}</span>
+      </footer>
     </>
   );
 }
 
-function Metric({ label, value, tone }: { label: string; value: string; tone: string }) {
+/** Score severity: high scores are healthy, low scores need attention. */
+function scoreSeverity(score: number): "good" | "warning" | "critical" {
+  if (score >= 70) return "good";
+  if (score >= 40) return "warning";
+  return "critical";
+}
+
+function StatTile({ label, score }: { label: string; score: number }) {
+  const severity = scoreSeverity(score);
   return (
-    <article className={`metric metric-${tone}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
+    <article className="stat-tile">
+      <span className="stat-label">{label}</span>
+      <div className="stat-value">
+        {formatScore(score)}
+        <small>/ 100</small>
+      </div>
+      <div className={`meter meter-${severity}`} role="img" aria-label={`${label}: ${score} / 100`}>
+        <i style={{ width: `${Math.min(100, Math.max(0, score))}%` }} />
+      </div>
+    </article>
+  );
+}
+
+function RiskTile({
+  label,
+  risk,
+  riskLabels,
+}: {
+  label: string;
+  risk: "Low" | "Medium" | "High";
+  riskLabels: Record<string, string>;
+}) {
+  const severity = risk === "Low" ? "good" : risk === "Medium" ? "warning" : "critical";
+  return (
+    <article className="stat-tile">
+      <span className="stat-label">{label}</span>
+      <div className="stat-value">{riskLabels[risk] ?? risk}</div>
+      <span className={`pill pill-${severity}`}>{riskLabels[risk] ?? risk}</span>
     </article>
   );
 }
@@ -407,7 +535,7 @@ function ApiSurfacePanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Cop
   }
 
   return (
-    <section className="api-band">
+    <section className="api-band card">
       <div className="api-header">
         <div>
           <p className="eyebrow">Gateway APIs</p>
@@ -486,7 +614,7 @@ function EnginesPanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Copy }
   }
 
   return (
-    <section className="api-band">
+    <section className="api-band card">
       <div className="api-header">
         <div>
           <p className="eyebrow">ADM + ERH</p>
@@ -529,17 +657,15 @@ function SdgPriorityPanel({ locale, t }: { locale: Locale; t: Copy }) {
   const top = getSdgPriorities(locale).filter((item) => item.priority === "P0" || item.priority === "P1");
 
   return (
-    <section className="sdg-band">
-      <div className="sdg-priority-header">
-        <div>
-          <p className="eyebrow">Corresponding SDGs</p>
-          <h2>{t.sdgTitle}</h2>
-        </div>
+    <section className="section" id="sdg">
+      <div className="section-head">
+        <p className="eyebrow">Corresponding SDGs</p>
+        <h2>{t.sdgTitle}</h2>
         <p>{t.sdgIntro}</p>
       </div>
       <div className="sdg-priority-grid">
         {top.map((item) => (
-          <article className={`sdg-priority-card sdg-${item.priority.toLowerCase()}`} key={item.sdg}>
+          <article className={`sdg-priority-card card sdg-${item.priority.toLowerCase()}`} key={item.sdg}>
             <div>
               <span>{item.priority}</span>
               <strong>

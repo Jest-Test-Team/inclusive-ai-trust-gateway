@@ -75,7 +75,8 @@ type TraceEvent struct {
 
 // Service owns sessions, the catalog, and the trust gating rules.
 type Service struct {
-	bus eventbus.Bus
+	bus   eventbus.Bus
+	store Store
 
 	mu       sync.RWMutex
 	sessions map[string]*Session
@@ -83,7 +84,14 @@ type Service struct {
 }
 
 func NewService(bus eventbus.Bus) *Service {
-	return &Service{bus: bus, sessions: map[string]*Session{}}
+	return NewServiceWithStore(bus, NopStore{})
+}
+
+func NewServiceWithStore(bus eventbus.Bus, store Store) *Service {
+	if store == nil {
+		store = NopStore{}
+	}
+	return &Service{bus: bus, store: store, sessions: map[string]*Session{}}
 }
 
 // WatchSafetyEvents contains sessions named in ADM containment events. Run
@@ -100,17 +108,20 @@ func (s *Service) WatchSafetyEvents(ctx context.Context) {
 			continue
 		}
 		if ev.EventType == "containment" || ev.Severity == "critical" {
-			s.ContainSession(ev.SessionID, "ADM "+ev.EventType+" event")
+			s.ContainSession(ctx, ev.SessionID, "ADM "+ev.EventType+" event")
 		}
 	}
 }
 
-func (s *Service) ContainSession(id, reason string) {
+func (s *Service) ContainSession(ctx context.Context, id, reason string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if sess, ok := s.sessions[id]; ok && sess.Status == "active" {
 		sess.Status = "contained"
-		s.appendTraceLocked(TraceEvent{
+		if err := s.store.UpdateSessionStatus(ctx, id, "contained"); err != nil {
+			slog.Warn("commerce: persist session status", "err", err, "session", id)
+		}
+		s.appendTraceLocked(ctx, TraceEvent{
 			SessionID: id, Action: "session.containment",
 			Verdict: VerdictBlocked, Reason: reason,
 		})
@@ -126,9 +137,12 @@ func (s *Service) OpenSession(ctx context.Context, agentID, personaID string) (S
 		ID: uuid.NewString(), AgentID: agentID, PersonaID: personaID,
 		Status: "active", StartedAt: time.Now().UTC(),
 	}
+	if err := s.store.SaveSession(ctx, sess); err != nil {
+		return Session{}, fmt.Errorf("persist session: %w", err)
+	}
 	s.mu.Lock()
 	s.sessions[sess.ID] = &sess
-	s.appendTraceLocked(TraceEvent{SessionID: sess.ID, Action: "session.open", Verdict: VerdictAllowed})
+	s.appendTraceLocked(ctx, TraceEvent{SessionID: sess.ID, Action: "session.open", Verdict: VerdictAllowed})
 	s.mu.Unlock()
 	return sess, nil
 }
@@ -136,7 +150,7 @@ func (s *Service) OpenSession(ctx context.Context, agentID, personaID string) (S
 // Discover returns catalog matches for the agent's query.
 func (s *Service) Discover(ctx context.Context, sessionID, query string) ([]Product, TraceEvent, error) {
 	if _, err := s.activeSession(sessionID); err != nil {
-		return nil, s.recordVerdict(sessionID, "discovery", VerdictBlocked, err.Error(), nil), nil
+		return nil, s.recordVerdict(ctx, sessionID, "discovery", VerdictBlocked, err.Error(), nil), nil
 	}
 	q := strings.ToLower(query)
 	var hits []Product
@@ -145,7 +159,7 @@ func (s *Service) Discover(ctx context.Context, sessionID, query string) ([]Prod
 			hits = append(hits, p)
 		}
 	}
-	return hits, s.recordVerdict(sessionID, "discovery", VerdictAllowed, "", nil), nil
+	return hits, s.recordVerdict(ctx, sessionID, "discovery", VerdictAllowed, "", nil), nil
 }
 
 // CheckoutIntent applies the trust gate before accepting a purchase intent:
@@ -158,7 +172,7 @@ func (s *Service) CheckoutIntent(ctx context.Context, sessionID, sku string, qty
 		qty = 1
 	}
 	if _, err := s.activeSession(sessionID); err != nil {
-		return s.recordVerdict(sessionID, "checkout.intent", VerdictBlocked, err.Error(), nil), nil
+		return s.recordVerdict(ctx, sessionID, "checkout.intent", VerdictBlocked, err.Error(), nil), nil
 	}
 	var product *Product
 	for i := range Catalog {
@@ -168,7 +182,7 @@ func (s *Service) CheckoutIntent(ctx context.Context, sessionID, sku string, qty
 		}
 	}
 	if product == nil {
-		return s.recordVerdict(sessionID, "checkout.intent", VerdictBlocked, "unknown SKU "+sku, nil), nil
+		return s.recordVerdict(ctx, sessionID, "checkout.intent", VerdictBlocked, "unknown SKU "+sku, nil), nil
 	}
 
 	payload, _ := json.Marshal(map[string]any{"sku": sku, "qty": qty, "priceTWD": product.PriceTWD})
@@ -176,13 +190,13 @@ func (s *Service) CheckoutIntent(ctx context.Context, sessionID, sku string, qty
 	// Fairness gate: ERH-style structural check against the reference price.
 	if product.FairPrice > 0 && product.PriceTWD > product.FairPrice*3/2 {
 		reason := fmt.Sprintf("price %d TWD exceeds fair reference %d TWD by >50%%", product.PriceTWD, product.FairPrice)
-		return s.recordVerdict(sessionID, "checkout.intent", VerdictBlocked, reason, payload), nil
+		return s.recordVerdict(ctx, sessionID, "checkout.intent", VerdictBlocked, reason, payload), nil
 	}
 	if !product.Accessible {
-		return s.recordVerdict(sessionID, "checkout.intent", VerdictFlagged,
+		return s.recordVerdict(ctx, sessionID, "checkout.intent", VerdictFlagged,
 			"product description not accessibility-verified for this persona", payload), nil
 	}
-	return s.recordVerdict(sessionID, "checkout.intent", VerdictAllowed, "", payload), nil
+	return s.recordVerdict(ctx, sessionID, "checkout.intent", VerdictAllowed, "", payload), nil
 }
 
 // Trace returns the newest trace events (the dashboard's commerce view).
@@ -213,9 +227,9 @@ func (s *Service) activeSession(id string) (*Session, error) {
 	return sess, nil
 }
 
-func (s *Service) recordVerdict(sessionID, action, verdict, reason string, payload json.RawMessage) TraceEvent {
+func (s *Service) recordVerdict(ctx context.Context, sessionID, action, verdict, reason string, payload json.RawMessage) TraceEvent {
 	s.mu.Lock()
-	e := s.appendTraceLocked(TraceEvent{
+	e := s.appendTraceLocked(ctx, TraceEvent{
 		SessionID: sessionID, Action: action, Verdict: verdict, Reason: reason, Payload: payload,
 	})
 	s.mu.Unlock()
@@ -223,10 +237,13 @@ func (s *Service) recordVerdict(sessionID, action, verdict, reason string, paylo
 }
 
 // appendTraceLocked assigns identity, stores, and publishes; callers hold mu.
-func (s *Service) appendTraceLocked(e TraceEvent) TraceEvent {
+func (s *Service) appendTraceLocked(ctx context.Context, e TraceEvent) TraceEvent {
 	e.ID = uuid.NewString()
 	e.CreatedAt = time.Now().UTC()
 	s.trace = append(s.trace, e)
+	if err := s.store.AppendEvent(ctx, e); err != nil {
+		slog.Warn("commerce: persist event", "err", err, "action", e.Action, "session", e.SessionID)
+	}
 	if s.bus != nil {
 		payload, _ := json.Marshal(e)
 		_ = s.bus.Publish(context.Background(), eventbus.Event{Channel: EventChannel, Payload: payload})

@@ -13,6 +13,7 @@ import (
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/assessments"
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/assessments/commands"
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/assessments/queries"
+	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/commerce"
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/erh"
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/platform/config"
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/platform/cqrs"
@@ -26,6 +27,7 @@ type App struct {
 	Bus      *cqrs.Bus
 	Events   eventbus.Bus
 	Webhooks *webhooks.Dispatcher
+	Commerce *commerce.Service
 }
 
 func New(cfg config.Config) *App {
@@ -52,6 +54,7 @@ func New(cfg config.Config) *App {
 	// hard fallback to memory so the demo never dies with the database.
 	var repo assessments.Repository = assessments.NewMemoryRepository()
 	var store adm.Store = adm.NewMemoryStore()
+	var commerceStore commerce.Store = commerce.NopStore{}
 	if cfg.DatabaseURL != "" {
 		ctx := context.Background()
 		if pool, err := postgres.Connect(ctx, cfg.DatabaseURL); err != nil {
@@ -62,9 +65,12 @@ func New(cfg config.Config) *App {
 		} else {
 			repo = assessments.NewPostgresRepository(pool)
 			store = adm.NewPostgresStore(pool)
+			commerceStore = commerce.NewPostgresStore(pool)
 			slog.Info("postgres repositories active")
 		}
 	}
+
+	ucp := commerce.NewServiceWithStore(events, commerceStore)
 
 	bus := cqrs.NewBus()
 	cqrs.Register[commands.CreateAssessment, assessments.Assessment](bus, commands.CreateAssessmentHandler{
@@ -75,7 +81,7 @@ func New(cfg config.Config) *App {
 	cqrs.Register[adm.IngestEvent, adm.SafetyEvent](bus, adm.IngestEventHandler{Store: store, Bus: events})
 	cqrs.Register[adm.ListEvents, []adm.SafetyEvent](bus, adm.ListEventsHandler{Store: store})
 
-	return &App{Cfg: cfg, Bus: bus, Events: events, Webhooks: hooks}
+	return &App{Cfg: cfg, Bus: bus, Events: events, Webhooks: hooks, Commerce: ucp}
 }
 
 func migrateIfEnabled(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) error {

@@ -9,7 +9,6 @@ import (
 	"os"
 
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/app"
-	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/commerce"
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/platform/config"
 	connectt "github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/transport/connectrpc"
 	gqlt "github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/transport/graphql"
@@ -35,9 +34,8 @@ func main() {
 
 	srv.MCP = mcpt.NewHTTPHandler(a.Bus)
 
-	ucp := commerce.NewService(a.Events)
-	go ucp.WatchSafetyEvents(context.Background())
-	srv.Commerce = ucp.Routes()
+	go a.Commerce.WatchSafetyEvents(context.Background())
+	srv.Commerce = a.Commerce.Routes()
 
 	srv.ConnectPath, srv.Connect = connectt.NewHandler(a.Bus)
 

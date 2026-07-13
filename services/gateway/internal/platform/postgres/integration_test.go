@@ -18,6 +18,7 @@ import (
 
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/adm"
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/assessments"
+	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/commerce"
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/domain"
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/erh"
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/platform/postgres"
@@ -122,5 +123,41 @@ func TestPostgresRoundTrip(t *testing.T) {
 	}
 	if events[0].EventType != "containment" || events[0].SessionID != "s-1" {
 		t.Fatalf("event round-trip mismatch: %+v", events[0])
+	}
+
+	commerceStore := commerce.NewPostgresStore(pool)
+	sess := commerce.Session{
+		ID: uuid.NewString(), AgentID: "agent-it", PersonaID: "persona-it",
+		Status: "active", StartedAt: time.Now().UTC().Truncate(time.Millisecond),
+	}
+	if err := commerceStore.SaveSession(ctx, sess); err != nil {
+		t.Fatal(err)
+	}
+	evt := commerce.TraceEvent{
+		ID: uuid.NewString(), SessionID: sess.ID, Action: "checkout.intent",
+		Verdict: commerce.VerdictBlocked, Reason: "price gouge",
+		Payload: json.RawMessage(`{"sku":"CARE-004"}`), CreatedAt: time.Now().UTC().Truncate(time.Millisecond),
+	}
+	if err := commerceStore.AppendEvent(ctx, evt); err != nil {
+		t.Fatal(err)
+	}
+	if err := commerceStore.UpdateSessionStatus(ctx, sess.ID, "contained"); err != nil {
+		t.Fatal(err)
+	}
+	var status string
+	if err := pool.QueryRow(ctx, `SELECT status FROM commerce_sessions WHERE id = $1`, sess.ID).Scan(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status != "contained" {
+		t.Fatalf("status = %s, want contained", status)
+	}
+	var action, verdict string
+	if err := pool.QueryRow(ctx, `
+		SELECT ucp_action, trust_verdict FROM commerce_events WHERE id = $1`, evt.ID,
+	).Scan(&action, &verdict); err != nil {
+		t.Fatal(err)
+	}
+	if action != "checkout.intent" || verdict != commerce.VerdictBlocked {
+		t.Fatalf("commerce event mismatch: %s %s", action, verdict)
 	}
 }
