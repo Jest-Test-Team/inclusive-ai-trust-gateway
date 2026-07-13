@@ -1,14 +1,18 @@
-// Curated catalog of Taiwan open-data sources the gateway reasons about, with
-// the concrete field fixes we recommend to the publishing agency and the bias
-// that appears if the raw dataset is fed to an AI service unmodified. This is a
-// hand-verified catalog (not a live data.gov.tw fetch); each record maps to the
-// public-service scenario it powers in sampleData.ts.
+// Catalog of Taiwan open-data sources the gateway reasons about, with the
+// concrete field fixes we recommend to the publishing agency and the bias that
+// appears if the raw dataset is fed to an AI service unmodified. Records with a
+// `datasetId` are fetched LIVE from data.gov.tw's M2M API (via /api/opendata/:id)
+// so the real schema, provider, and update frequency are shown and the missing
+// accessibility fields are computed from the actual columns; records without one
+// are curated references. Each record maps to the scenario it powers.
 
 import type { Locale } from "./i18n";
 
 export interface OpenDataSource {
   id: string;
   scenarioId: string;
+  /** Numeric data.gov.tw dataset id — when set, the panel fetches it live. */
+  datasetId?: string;
   /** Dataset title as published. */
   name: Record<Locale, string>;
   agency: Record<Locale, string>;
@@ -21,6 +25,12 @@ export interface OpenDataSource {
   biasNote: Record<Locale, string>;
   /** Machine-readable fields we ask the agency to add. */
   recommendedFields: Record<Locale, string[]>;
+  /**
+   * Case-insensitive substrings that would indicate the accessibility/language
+   * columns exist. If a live dataset's real schema contains none of these, the
+   * panel reports the accessibility gap as a data-driven finding.
+   */
+  accessibilityTokens: string[];
   /** What we publish back (feedback loop the hackathon rewards). */
   provision: Record<Locale, string>;
 }
@@ -29,25 +39,27 @@ export const openDataSources: OpenDataSource[] = [
   {
     id: "ltc-institutions",
     scenarioId: "care-navigation",
+    datasetId: "8572",
     name: {
-      en: "Long-term care institution registry",
-      "zh-TW": "長期照顧服務機構名冊",
+      en: "National elderly-care facility registry",
+      "zh-TW": "全國老人福利機構名冊",
     },
-    agency: { en: "Ministry of Health and Welfare", "zh-TW": "衛生福利部" },
-    sourceUrl: "https://data.gov.tw/dataset/6183",
-    format: "CSV / JSON",
+    agency: { en: "Ministry of Health and Welfare (SFAA)", "zh-TW": "衛生福利部社會及家庭署" },
+    sourceUrl: "https://data.gov.tw/dataset/8572",
+    format: "CSV",
     usedFor: {
       en: "Grounds the care-navigation assistant so it recommends real, licensed facilities near the citizen.",
       "zh-TW": "作為長照導引助理的依據，推薦民眾附近真實且立案的服務機構。",
     },
     biasNote: {
-      en: "Language and accessibility support are free-text or absent, so an AI silently skips facilities that serve minority-language or wheelchair users — excluding the people who most need care.",
-      "zh-TW": "語言與無障礙支援為自由文字或缺漏，AI 會默默略過服務少數語言或輪椅使用者的機構，反而排除最需要照顧的族群。",
+      en: "The live schema (機構名稱, 地址, 收容對象, 核定床數…) carries no language or accessibility column, so an AI silently skips facilities that serve minority-language or wheelchair users — excluding the people who most need care.",
+      "zh-TW": "即時欄位（機構名稱、地址、收容對象、核定床數…）沒有語言或無障礙欄位，AI 會默默略過服務少數語言或輪椅使用者的機構，反而排除最需要照顧的族群。",
     },
     recommendedFields: {
       en: ["languages_supported[] (BCP-47 codes)", "wheelchair_access (bool)", "vacancy_status (enum)", "stable_facility_id"],
       "zh-TW": ["languages_supported[]（BCP-47 語言碼）", "wheelchair_access（布林值）", "vacancy_status（列舉）", "穩定機構識別碼"],
     },
+    accessibilityTokens: ["language", "lang", "語言", "wheelchair", "accessible", "無障礙", "輪椅", "barrier"],
     provision: {
       en: "We publish a normalized copy with structured accessibility tags plus a data-quality report flagging rows missing them.",
       "zh-TW": "我們回饋一份標準化副本，補上結構化無障礙標籤，並附上標示缺漏欄位的資料品質報告。",
@@ -75,6 +87,7 @@ export const openDataSources: OpenDataSource[] = [
       en: ["survey_date", "coverage_confidence", "accessibility_type (ramp/lift/tactile)", "last_verified_by"],
       "zh-TW": ["調查日期", "涵蓋信心度", "無障礙類型（坡道／電梯／導盲磚）", "最後查核單位"],
     },
+    accessibilityTokens: ["accessible", "無障礙", "wheelchair", "輪椅", "ramp", "坡道"],
     provision: {
       en: "We contribute a coverage-gap overlay so downstream models know where 'no data' ≠ 'no access'.",
       "zh-TW": "我們提供涵蓋缺口疊圖，讓下游模型分辨「沒有資料」不等於「沒有無障礙」。",
@@ -102,6 +115,7 @@ export const openDataSources: OpenDataSource[] = [
       en: ["message_translations[] (per-locale)", "severity (CAP enum)", "accessible_shelter_ids[]", "valid_until (ISO-8601)"],
       "zh-TW": ["message_translations[]（各語系）", "severity（CAP 列舉）", "accessible_shelter_ids[]", "valid_until（ISO-8601）"],
     },
+    accessibilityTokens: ["translation", "翻譯", "language", "語言", "multilingual", "多語"],
     provision: {
       en: "We publish machine-translated multilingual alert variants with a human-review flag for high-severity events.",
       "zh-TW": "我們回饋多語系機器翻譯告警版本，並對高嚴重度事件加註人工複核標記。",
@@ -129,6 +143,7 @@ export const openDataSources: OpenDataSource[] = [
       en: ["township_granularity", "device_access_rate", "broadband_mbps_median", "support_service_languages[]"],
       "zh-TW": ["鄉鎮級粒度", "載具普及率", "寬頻中位速率（Mbps）", "支援服務語言[]"],
     },
+    accessibilityTokens: ["language", "語言", "township", "鄉鎮", "broadband", "寬頻"],
     provision: {
       en: "We publish a township-level equity index derived from the dataset plus the ERH fairness score per region.",
       "zh-TW": "我們回饋以此資料推導的鄉鎮級平權指數，並附上各地區的 ERH 公平性分數。",
