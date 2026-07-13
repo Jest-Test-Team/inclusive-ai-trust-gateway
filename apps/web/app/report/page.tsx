@@ -1,21 +1,22 @@
 "use client";
 
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useCases, type Locale } from "@iatg/shared";
 import { ReportView } from "../../components/ReportView";
 
-function Report() {
-  const params = useSearchParams();
-  const scenarioId = params.get("scenario") ?? useCases[0].id;
-  const locale: Locale = params.get("locale") === "zh-TW" ? "zh-TW" : "en";
-  return <ReportView scenarioId={scenarioId} locale={locale} />;
-}
-
 export default function ReportPage() {
-  return (
-    <Suspense fallback={null}>
-      <Report />
-    </Suspense>
-  );
+  const [params, setParams] = useState<{ scenarioId: string; locale: Locale }>({
+    scenarioId: useCases[0].id,
+    locale: "en",
+  });
+
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    setParams({
+      scenarioId: q.get("scenario") ?? useCases[0].id,
+      locale: q.get("locale") === "zh-TW" ? "zh-TW" : "en",
+    });
+  }, []);
+
+  return <ReportView scenarioId={params.scenarioId} locale={params.locale} />;
 }
