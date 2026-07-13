@@ -1051,6 +1051,52 @@ li + li {
 }
 
 /* ---------------------------------------------------------------------------
+   ERH audit terminal
+--------------------------------------------------------------------------- */
+.erh-term {
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--brand-900);
+  color: #cfeee4;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.7;
+  min-height: 120px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.erh-line {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.erh-prompt {
+  color: var(--brand-glow);
+  font-weight: 700;
+}
+
+.erh-info {
+  color: #9fc9bf;
+}
+.erh-ok {
+  color: #7ff0b6;
+  font-weight: 650;
+}
+.erh-warn {
+  color: #ffd27a;
+}
+.erh-bad {
+  color: #ff9b8f;
+  font-weight: 650;
+}
+
+.erh-caption {
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+/* ---------------------------------------------------------------------------
    Attack simulator
 --------------------------------------------------------------------------- */
 .attack-list {

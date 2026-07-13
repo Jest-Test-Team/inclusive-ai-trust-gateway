@@ -27,6 +27,7 @@ import {
 import { apiBaseURL, apiKey, gateway, liveMode, openLiveFeed } from "../lib/api";
 import { Playground } from "./Playground";
 import { AttackSimulator } from "./AttackSimulator";
+import { ErhAuditLog } from "./ErhAuditLog";
 
 const copy = {
   en: {
@@ -364,6 +365,9 @@ export function Dashboard() {
               ))}
             </ul>
           </article>
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <ErhAuditLog useCase={selected} locale={locale} />
         </div>
       </section>
 
