@@ -26,11 +26,14 @@ export interface OpenDataSource {
   /** Machine-readable fields we ask the agency to add. */
   recommendedFields: Record<Locale, string[]>;
   /**
-   * Case-insensitive substrings that would indicate the accessibility/language
-   * columns exist. If a live dataset's real schema contains none of these, the
-   * panel reports the accessibility gap as a data-driven finding.
+   * Case-insensitive substrings that would indicate the equity column this
+   * dataset should carry (language, accessibility, connectivity…). If a live
+   * dataset's real schema contains none of these, the panel reports the gap as
+   * a data-driven finding.
    */
   accessibilityTokens: string[];
+  /** Human name of the column checked for, shown in the live gap finding. */
+  gapLabel: Record<Locale, string>;
   /** What we publish back (feedback loop the hackathon rewards). */
   provision: Record<Locale, string>;
 }
@@ -60,6 +63,7 @@ export const openDataSources: OpenDataSource[] = [
       "zh-TW": ["languages_supported[]（BCP-47 語言碼）", "wheelchair_access（布林值）", "vacancy_status（列舉）", "穩定機構識別碼"],
     },
     accessibilityTokens: ["language", "lang", "語言", "wheelchair", "accessible", "無障礙", "輪椅", "barrier"],
+    gapLabel: { en: "accessibility / language", "zh-TW": "無障礙／語言" },
     provision: {
       en: "We publish a normalized copy with structured accessibility tags plus a data-quality report flagging rows missing them.",
       "zh-TW": "我們回饋一份標準化副本，補上結構化無障礙標籤，並附上標示缺漏欄位的資料品質報告。",
@@ -68,85 +72,91 @@ export const openDataSources: OpenDataSource[] = [
   {
     id: "accessible-facilities",
     scenarioId: "care-navigation",
+    datasetId: "128416",
     name: {
-      en: "Accessible facilities map",
-      "zh-TW": "無障礙設施地圖",
+      en: "Taipei MRT station accessibility facilities",
+      "zh-TW": "臺北捷運車站無障礙設施資料",
     },
-    agency: { en: "Ministry of the Interior", "zh-TW": "內政部" },
-    sourceUrl: "https://data.gov.tw/dataset/33427",
-    format: "CSV / WMTS",
+    agency: { en: "Taipei Rapid Transit Corp.", "zh-TW": "臺北大眾捷運股份有限公司" },
+    sourceUrl: "https://data.gov.tw/dataset/128416",
+    format: "CSV",
     usedFor: {
-      en: "Lets the assistant answer whether a route or venue is wheelchair- and guide-dog-accessible.",
-      "zh-TW": "讓助理能回答某路線或場所是否適合輪椅與導盲犬通行。",
+      en: "Lets the assistant answer whether a station is step-free, has disabled toilets, and wheelchair-reserved spaces.",
+      "zh-TW": "讓助理能回答某車站是否無障礙、有無障礙廁所與輪椅保留空間。",
     },
     biasNote: {
-      en: "Coverage skews to urban districts; an AI trained on it will confidently claim rural areas have no accessible options when they are simply unrecorded.",
-      "zh-TW": "資料偏重都會區；以此訓練的 AI 會武斷地宣稱偏鄉沒有無障礙選項，實際上只是未被登錄。",
+      en: "The schema is rich on physical accessibility (elevators, wheelchair spaces) but has no language field, and covers Taipei metro only — an AI treating it as nationwide tells a rural or non-Mandarin user 'no accessible option' that simply isn't recorded.",
+      "zh-TW": "欄位對實體無障礙（電梯、輪椅空間）著墨甚多，卻無語言欄位，且僅涵蓋臺北捷運 — AI 若當成全國資料，會對偏鄉或非華語使用者回答「沒有無障礙選項」，實則只是未登錄。",
     },
     recommendedFields: {
-      en: ["survey_date", "coverage_confidence", "accessibility_type (ramp/lift/tactile)", "last_verified_by"],
-      "zh-TW": ["調查日期", "涵蓋信心度", "無障礙類型（坡道／電梯／導盲磚）", "最後查核單位"],
+      en: ["languages_supported[] (signage/announcements)", "coverage_region", "survey_date", "step_free_verified_by"],
+      "zh-TW": ["languages_supported[]（標示／廣播語言）", "涵蓋區域", "調查日期", "無障礙查核單位"],
     },
-    accessibilityTokens: ["accessible", "無障礙", "wheelchair", "輪椅", "ramp", "坡道"],
+    accessibilityTokens: ["language", "lang", "語言", "multilingual", "多語", "英語", "english"],
+    gapLabel: { en: "language / multilingual", "zh-TW": "語言／多語" },
     provision: {
-      en: "We contribute a coverage-gap overlay so downstream models know where 'no data' ≠ 'no access'.",
-      "zh-TW": "我們提供涵蓋缺口疊圖，讓下游模型分辨「沒有資料」不等於「沒有無障礙」。",
+      en: "We contribute a coverage-region tag and a language-of-service field so downstream models know where 'no data' ≠ 'no access'.",
+      "zh-TW": "我們補上涵蓋區域標籤與服務語言欄位，讓下游模型分辨「沒有資料」不等於「沒有無障礙」。",
     },
   },
   {
-    id: "cap-alerts",
+    id: "shelter-points",
     scenarioId: "disaster-access",
+    datasetId: "73242",
     name: {
-      en: "Disaster prevention alerts (CAP)",
-      "zh-TW": "災防告警訊息（CAP）",
+      en: "Evacuation shelter location file",
+      "zh-TW": "避難收容處所點位檔",
     },
     agency: { en: "National Fire Agency", "zh-TW": "內政部消防署" },
     sourceUrl: "https://data.gov.tw/dataset/73242",
-    format: "CAP 1.2 XML",
+    format: "CSV",
     usedFor: {
-      en: "Feeds the disaster-access assistant with live hazard alerts and shelter directions.",
-      "zh-TW": "為災害協助助理提供即時災害告警與避難指引。",
+      en: "Feeds the disaster-access assistant with shelter locations, capacity, and applicable hazard types.",
+      "zh-TW": "為災害協助助理提供避難處所位置、收容人數與適用災害類別。",
     },
     biasNote: {
-      en: "Alerts ship in Mandarin only; an AI relaying them verbatim leaves migrant and Indigenous-language communities without evacuation instructions during the exact window that matters.",
-      "zh-TW": "告警僅有中文；AI 若原文轉述，會讓移工與原住民語族群在最關鍵的疏散時刻收不到指示。",
+      en: "The schema records capacity and coordinates but no accessibility flag, so an AI routing a wheelchair user or family with an elderly member cannot tell which shelters are actually reachable — the highest-need evacuees are sent blind.",
+      "zh-TW": "欄位有收容人數與座標，卻無無障礙標記，AI 無法為輪椅使用者或有長者的家庭判斷哪些避難所實際可達 — 最需要協助的災民被盲目引導。",
     },
     recommendedFields: {
-      en: ["message_translations[] (per-locale)", "severity (CAP enum)", "accessible_shelter_ids[]", "valid_until (ISO-8601)"],
-      "zh-TW": ["message_translations[]（各語系）", "severity（CAP 列舉）", "accessible_shelter_ids[]", "valid_until（ISO-8601）"],
+      en: ["wheelchair_accessible (bool)", "languages_supported[]", "medical_support_onsite (bool)", "valid_from/until"],
+      "zh-TW": ["wheelchair_accessible（布林值）", "languages_supported[]", "現場醫療支援（布林值）", "生效／截止時間"],
     },
-    accessibilityTokens: ["translation", "翻譯", "language", "語言", "multilingual", "多語"],
+    accessibilityTokens: ["accessible", "無障礙", "wheelchair", "輪椅", "ramp", "坡道", "friendly", "友善"],
+    gapLabel: { en: "accessibility", "zh-TW": "無障礙" },
     provision: {
-      en: "We publish machine-translated multilingual alert variants with a human-review flag for high-severity events.",
-      "zh-TW": "我們回饋多語系機器翻譯告警版本，並對高嚴重度事件加註人工複核標記。",
+      en: "We publish an accessibility-tagged shelter overlay and a multilingual shelter-name variant for high-severity events.",
+      "zh-TW": "我們回饋標註無障礙的避難所疊圖，並為高嚴重度事件提供多語避難所名稱版本。",
     },
   },
   {
-    id: "education-resources",
+    id: "digital-tutoring",
     scenarioId: "education-access",
+    datasetId: "31855",
     name: {
-      en: "Education resource distribution",
-      "zh-TW": "教育資源分佈",
+      en: "Digital Companion partner-school matching list",
+      "zh-TW": "數位學伴計畫夥伴學校媒合清單",
     },
     agency: { en: "Ministry of Education", "zh-TW": "教育部" },
-    sourceUrl: "https://data.gov.tw/dataset/6297",
-    format: "CSV / JSON",
+    sourceUrl: "https://data.gov.tw/dataset/31855",
+    format: "CSV",
     usedFor: {
-      en: "Helps the education assistant route students to broadband, devices, and tutoring support.",
-      "zh-TW": "協助教育助理將學生導引至寬頻、載具與課輔資源。",
+      en: "Helps the education assistant see which rural schools are matched to online tutoring and how many students are covered.",
+      "zh-TW": "協助教育助理掌握哪些偏鄉學校已媒合線上課輔，以及涵蓋學童人數。",
     },
     biasNote: {
-      en: "Broadband and device availability are reported at county level, so an AI recommending 'online learning' overlooks rural townships and low-income households inside well-served counties.",
-      "zh-TW": "寬頻與載具資料以縣市為單位，AI 推薦「線上學習」時會忽略資源充足縣市內的偏鄉與低收入家庭。",
+      en: "The list records matched schools and student counts but nothing on connectivity or devices, so an AI recommending 'online tutoring' assumes every listed child can actually get online — the exact digital-divide it is meant to close.",
+      "zh-TW": "清單記錄了媒合學校與學童人數，卻沒有連網或載具資訊，AI 推薦「線上課輔」時會假設每位學童都能上網 — 正是它想弭平的數位落差。",
     },
     recommendedFields: {
-      en: ["township_granularity", "device_access_rate", "broadband_mbps_median", "support_service_languages[]"],
-      "zh-TW": ["鄉鎮級粒度", "載具普及率", "寬頻中位速率（Mbps）", "支援服務語言[]"],
+      en: ["device_access_rate", "broadband_mbps_median", "home_connectivity_flag", "support_service_languages[]"],
+      "zh-TW": ["載具普及率", "寬頻中位速率（Mbps）", "居家連網標記", "支援服務語言[]"],
     },
-    accessibilityTokens: ["language", "語言", "township", "鄉鎮", "broadband", "寬頻"],
+    accessibilityTokens: ["broadband", "寬頻", "device", "載具", "network", "網路", "連網", "language", "語言"],
+    gapLabel: { en: "connectivity / device", "zh-TW": "連網／載具" },
     provision: {
-      en: "We publish a township-level equity index derived from the dataset plus the ERH fairness score per region.",
-      "zh-TW": "我們回饋以此資料推導的鄉鎮級平權指數，並附上各地區的 ERH 公平性分數。",
+      en: "We publish a township-level connectivity-equity index derived from the list plus the ERH fairness score per region.",
+      "zh-TW": "我們回饋以此清單推導的鄉鎮級連網平權指數，並附上各地區的 ERH 公平性分數。",
     },
   },
 ];

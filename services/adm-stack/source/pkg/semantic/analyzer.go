@@ -58,14 +58,34 @@ func NewAnalyzer(sensitivity float64) *Analyzer {
 // defaultPatterns is the canonical keyword pattern set, shared by the Analyzer
 // and the LexicalFeaturizer.
 func defaultPatterns() []Pattern {
+	// Keywords include Traditional/Simplified Chinese phrases so a Mandarin
+	// injection (RT-019 multi-language) is caught, not just English — essential
+	// for a Taiwan public-service deployment. Chinese entries are deliberately
+	// multi-character compound phrases to avoid false positives on benign care
+	// prompts (e.g. "個資" alone is common; "導出...個資" is not).
 	return []Pattern{
-		{Name: "system_prompt_override", Keywords: []string{"ignore previous", "ignore all", "disregard instructions", "new instructions"}, Weight: 0.9},
-		{Name: "role_manipulation", Keywords: []string{"you are now", "act as", "pretend to be", "your new role"}, Weight: 0.8},
-		{Name: "data_exfiltration", Keywords: []string{"send to", "post to", "upload to", "exfiltrate", "leak"}, Weight: 0.85},
+		{Name: "system_prompt_override", Keywords: []string{
+			"ignore previous", "ignore all", "disregard instructions", "new instructions",
+			"忽略上述", "忽略所有", "忽略先前", "忽略之前", "無視上述", "無視所有", "不要理會上述", "略過所有指令", "忽略安全指令", "忽略平權",
+		}, Weight: 0.9},
+		{Name: "role_manipulation", Keywords: []string{
+			"you are now", "act as", "pretend to be", "your new role",
+			"你現在是", "現在你是", "你的新角色", "開發者模式", "開發模式已啟用", "扮演管理員", "假扮成", "從現在起你是",
+		}, Weight: 0.8},
+		{Name: "data_exfiltration", Keywords: []string{
+			"send to", "post to", "upload to", "exfiltrate", "leak",
+			"導出後台", "匯出後台", "導出資料庫", "匯出資料庫", "導出使用者", "匯出使用者", "導出個資", "匯出個資", "洩漏", "外洩", "傳送到外部", "上傳到外部",
+		}, Weight: 0.85},
 		{Name: "code_execution", Keywords: []string{"eval(", "exec(", "system(", "os.system", "subprocess"}, Weight: 0.7},
 		{Name: "reverse_shell", Keywords: []string{"bash -i", "nc -e", "reverse shell", "/dev/tcp"}, Weight: 1.0},
-		{Name: "privilege_escalation", Keywords: []string{"sudo", "chmod 777", "setuid", "root access"}, Weight: 0.9},
-		{Name: "prompt_leak", Keywords: []string{"show me your prompt", "what are your instructions", "reveal your system prompt"}, Weight: 0.75},
+		{Name: "privilege_escalation", Keywords: []string{
+			"sudo", "chmod 777", "setuid", "root access",
+			"最高權限", "root 權限", "提升權限", "取得管理員權限",
+		}, Weight: 0.9},
+		{Name: "prompt_leak", Keywords: []string{
+			"show me your prompt", "what are your instructions", "reveal your system prompt",
+			"你的系統提示", "系統提示詞", "揭露你的指令", "顯示你的指令", "洩露系統提示", "洩漏系統提示", "告訴我你的指令",
+		}, Weight: 0.75},
 		{Name: "delimiter_injection", Keywords: []string{"```system", "```\n\n", "---END---", "<|im_start|>system"}, Weight: 0.85},
 	}
 }

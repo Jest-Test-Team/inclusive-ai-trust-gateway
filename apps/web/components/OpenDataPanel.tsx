@@ -26,8 +26,8 @@ const copy: Record<Locale, {
   fetchFailed: string;
   liveSchema: string;
   provider: string;
-  gapFound: string;
-  gapNone: string;
+  gapFound: (label: string) => string;
+  gapNone: (label: string) => string;
   columns: (n: number) => string;
 }> = {
   en: {
@@ -46,8 +46,8 @@ const copy: Record<Locale, {
     fetchFailed: "Live fetch unavailable — showing curated analysis",
     liveSchema: "Live schema (data.gov.tw)",
     provider: "Provider",
-    gapFound: "No accessibility/language column in the live schema — bias confirmed",
-    gapNone: "Live schema already includes an accessibility/language column",
+    gapFound: (label) => `No ${label} column in the live schema — bias confirmed`,
+    gapNone: (label) => `Live schema already includes a ${label} column`,
     columns: (n) => `${n} columns`,
   },
   "zh-TW": {
@@ -66,8 +66,8 @@ const copy: Record<Locale, {
     fetchFailed: "即時串接暫時無法使用 — 顯示彙整分析",
     liveSchema: "即時欄位（data.gov.tw）",
     provider: "資料提供機關",
-    gapFound: "即時欄位中沒有無障礙／語言欄位 — 偏差已驗證",
-    gapNone: "即時欄位已含無障礙／語言欄位",
+    gapFound: (label) => `即時欄位中沒有「${label}」欄位 — 偏差已驗證`,
+    gapNone: (label) => `即時欄位已含「${label}」欄位`,
     columns: (n) => `${n} 個欄位`,
   },
 };
@@ -152,7 +152,7 @@ function SourceCard({
       </div>
       {active && <span className="opendata-flag">{t.powers}</span>}
 
-      {src.datasetId && <LiveMeta state={live} t={t} />}
+      {src.datasetId && <LiveMeta state={live} t={t} gapLabel={src.gapLabel[locale]} />}
 
       <dl className="opendata-dl">
         <dt>{t.usedFor}</dt>
@@ -176,7 +176,7 @@ function SourceCard({
   );
 }
 
-function LiveMeta({ state, t }: { state: FetchState; t: Copy }) {
+function LiveMeta({ state, t, gapLabel }: { state: FetchState; t: Copy; gapLabel: string }) {
   if (state.status === "loading") return <p className="opendata-livemeta opendata-loading">{t.fetching}</p>;
   if (state.status === "error" || state.status === "idle")
     return <p className="opendata-livemeta opendata-loading">{t.fetchFailed}</p>;
@@ -201,7 +201,7 @@ function LiveMeta({ state, t }: { state: FetchState; t: Copy }) {
         </>
       )}
       <p className={`opendata-gap ${gap ? "opendata-gap-bad" : "opendata-gap-ok"}`}>
-        {gap ? `✗ ${t.gapFound}` : `✓ ${t.gapNone}`}
+        {gap ? `✗ ${t.gapFound(gapLabel)}` : `✓ ${t.gapNone(gapLabel)}`}
       </p>
     </div>
   );
