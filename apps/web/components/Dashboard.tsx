@@ -101,6 +101,7 @@ const copy = {
     erhHealthy: "within the ERH bound",
     erhUnhealthy: "structural error growth detected",
     liveDefense: "Live Defense",
+    exportReport: "Export audit report (PDF)",
     footerLeft: "Inclusive AI Trust Gateway — hackathon MVP",
     footerRight: "ERH + ADM engines · REST / WS / Connect-RPC / GraphQL / MQTT / MCP / UCP",
   },
@@ -171,6 +172,7 @@ const copy = {
     erhHealthy: "在 ERH 健康界線內",
     erhUnhealthy: "偵測到結構性錯誤成長",
     liveDefense: "即時防禦",
+    exportReport: "匯出稽核報告（PDF）",
     footerLeft: "包容式 AI 信任閘道 — 黑客松 MVP",
     footerRight: "ERH + ADM 引擎 · REST / WS / Connect-RPC / GraphQL / MQTT / MCP / UCP",
   },
@@ -277,6 +279,10 @@ export function Dashboard() {
               </div>
             </div>
             <p className="summary">{selected.summary}</p>
+
+            <a className="report-link" href={`/report?scenario=${selected.id}&locale=${locale}`}>
+              📄 {t.exportReport}
+            </a>
 
             <div className="two-column">
               <article>
