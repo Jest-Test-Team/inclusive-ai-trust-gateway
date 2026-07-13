@@ -102,6 +102,7 @@ const copy = {
     erhUnhealthy: "structural error growth detected",
     liveDefense: "Live Defense",
     exportReport: "Export audit report (PDF)",
+    openDataHint: "See which open data is used",
     footerLeft: "Inclusive AI Trust Gateway — hackathon MVP",
     footerRight: "ERH + ADM engines · REST / WS / Connect-RPC / GraphQL / MQTT / MCP / UCP",
   },
@@ -173,6 +174,7 @@ const copy = {
     erhUnhealthy: "偵測到結構性錯誤成長",
     liveDefense: "即時防禦",
     exportReport: "匯出稽核報告（PDF）",
+    openDataHint: "查看使用了哪些開放資料",
     footerLeft: "包容式 AI 信任閘道 — 黑客松 MVP",
     footerRight: "ERH + ADM 引擎 · REST / WS / Connect-RPC / GraphQL / MQTT / MCP / UCP",
   },
@@ -239,7 +241,7 @@ export function Dashboard() {
       <div className="kpi-strip">
         <StatTile label={t.metricInclusion} score={assessment.inclusionScore} />
         <RiskTile label={t.metricFairness} risk={assessment.fairnessRisk} riskLabels={t.riskLabels} />
-        <StatTile label={t.metricOpenData} score={assessment.openDataReadiness} />
+        <StatTile label={t.metricOpenData} score={assessment.openDataReadiness} href="#open-data" hint={t.openDataHint} />
         <StatTile label={t.metricAgentSafety} score={assessment.agentSafetyReadiness} />
       </div>
 
