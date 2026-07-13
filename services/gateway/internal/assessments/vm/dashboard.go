@@ -15,10 +15,26 @@ type DashboardVM struct {
 	AverageInclusion int                      `json:"averageInclusion"`
 	HighRiskCount    int                      `json:"highRiskCount"`
 	Recent           []dto.AssessmentResponse `json:"recent"`
+	// Cumulative, all-time metrics for the quantifiable-benefits board.
+	AdmEventsByType map[string]int `json:"admEventsByType"`
+	AdmEventsTotal  int            `json:"admEventsTotal"`
 }
 
-func BuildDashboard(recent []assessments.Assessment, total int) DashboardVM {
-	vm := DashboardVM{TotalAssessments: total, Recent: make([]dto.AssessmentResponse, 0, len(recent))}
+// BuildDashboard shapes the landing view. total is the all-time assessment
+// count (not the length of recent); admByType is the all-time safety-event
+// count grouped by event type.
+func BuildDashboard(recent []assessments.Assessment, total int, admByType map[string]int) DashboardVM {
+	vm := DashboardVM{
+		TotalAssessments: total,
+		Recent:           make([]dto.AssessmentResponse, 0, len(recent)),
+		AdmEventsByType:  admByType,
+	}
+	if vm.AdmEventsByType == nil {
+		vm.AdmEventsByType = map[string]int{}
+	}
+	for _, n := range vm.AdmEventsByType {
+		vm.AdmEventsTotal += n
+	}
 	sum := 0
 	for _, a := range recent {
 		vm.Recent = append(vm.Recent, dto.FromAssessment(a))

@@ -41,6 +41,9 @@ type IngestEvent struct {
 type Store interface {
 	Append(ctx context.Context, e SafetyEvent) error
 	Recent(ctx context.Context, limit int) ([]SafetyEvent, error)
+	// CountByType returns the all-time count of safety events grouped by
+	// event type, powering the dashboard's cumulative safety metrics.
+	CountByType(ctx context.Context) (map[string]int, error)
 }
 
 type IngestEventHandler struct {
@@ -78,6 +81,16 @@ func (h ListEventsHandler) Handle(ctx context.Context, q ListEvents) ([]SafetyEv
 	return h.Store.Recent(ctx, q.Limit)
 }
 
+// CountEventsByType is the read-side query for cumulative safety-event counts
+// grouped by event type.
+type CountEventsByType struct{}
+
+type CountEventsByTypeHandler struct{ Store Store }
+
+func (h CountEventsByTypeHandler) Handle(ctx context.Context, _ CountEventsByType) (map[string]int, error) {
+	return h.Store.CountByType(ctx)
+}
+
 // MemoryStore is the DB-less Store used by tests and demo mode; the
 // ent/Postgres implementation lands with infra/database.
 type MemoryStore struct {
@@ -92,6 +105,16 @@ func (s *MemoryStore) Append(_ context.Context, e SafetyEvent) error {
 	defer s.mu.Unlock()
 	s.events = append(s.events, e)
 	return nil
+}
+
+func (s *MemoryStore) CountByType(_ context.Context) (map[string]int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make(map[string]int, len(s.events))
+	for _, e := range s.events {
+		out[e.EventType]++
+	}
+	return out, nil
 }
 
 func (s *MemoryStore) Recent(_ context.Context, limit int) ([]SafetyEvent, error) {

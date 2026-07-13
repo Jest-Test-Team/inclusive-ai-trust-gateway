@@ -25,7 +25,12 @@ import {
   type PublicServiceUseCase,
 } from "@iatg/shared";
 import { apiBaseURL, apiKey, gateway, liveMode, openLiveFeed } from "../lib/api";
+import { readLocale, subscribeLocale } from "../lib/locale";
 import { Playground } from "./Playground";
+import { AttackSimulator } from "./AttackSimulator";
+import { ErhAuditLog } from "./ErhAuditLog";
+import { OpenDataPanel } from "./OpenDataPanel";
+import { ImpactBoard } from "./ImpactBoard";
 
 const copy = {
   en: {
@@ -34,13 +39,6 @@ const copy = {
     intro:
       "A public-service AI evaluation and protection platform that audits fairness, explains risk, and protects AI agents from misuse so governments can deploy AI services safely and inclusively.",
     heroChips: ["ERH fairness engine", "ADM agent safety", "Trust-gated UCP commerce", "Open-data evidence"],
-    nav: [
-      ["overview", "Overview"],
-      ["scenarios", "Scenarios"],
-      ["evidence", "Trust Evidence"],
-      ["sdg", "SDGs"],
-      ["console", "Live Console"],
-    ],
     scenarios: "Service Scenarios",
     scenariosIntro:
       "Pick a public-service scenario to see who it serves, what safeguards it needs, and how the trust scores react.",
@@ -95,7 +93,8 @@ const copy = {
     erhResult: "ERH verdict for this scenario",
     erhHealthy: "within the ERH bound",
     erhUnhealthy: "structural error growth detected",
-    liveDefense: "Live Defense",
+    exportReport: "Export audit report (PDF)",
+    openDataHint: "See which open data is used",
     footerLeft: "Inclusive AI Trust Gateway — hackathon MVP",
     footerRight: "ERH + ADM engines · REST / WS / Connect-RPC / GraphQL / MQTT / MCP / UCP",
   },
@@ -105,13 +104,6 @@ const copy = {
     intro:
       "一個面向公共服務的 AI 評估與防護平台，用 API 證據檢查公平性、解釋風險，並保護 AI 代理不被濫用。",
     heroChips: ["ERH 公平性引擎", "ADM 代理安全", "UCP 交易信任把關", "開放資料佐證"],
-    nav: [
-      ["overview", "總覽"],
-      ["scenarios", "服務情境"],
-      ["evidence", "信任證據"],
-      ["sdg", "SDG 對應"],
-      ["console", "即時主控台"],
-    ],
     scenarios: "服務情境",
     scenariosIntro: "選擇一個公共服務情境，查看服務對象、所需防護措施，以及信任分數的變化。",
     targetUsers: "目標使用者",
@@ -164,7 +156,8 @@ const copy = {
     erhResult: "此情境的 ERH 評估結果",
     erhHealthy: "在 ERH 健康界線內",
     erhUnhealthy: "偵測到結構性錯誤成長",
-    liveDefense: "即時防禦",
+    exportReport: "匯出稽核報告（PDF）",
+    openDataHint: "查看使用了哪些開放資料",
     footerLeft: "包容式 AI 信任閘道 — 黑客松 MVP",
     footerRight: "ERH + ADM 引擎 · REST / WS / Connect-RPC / GraphQL / MQTT / MCP / UCP",
   },
@@ -185,38 +178,13 @@ export function Dashboard() {
   );
   const t = copy[locale];
 
+  useEffect(() => {
+    setLocale(readLocale());
+    return subscribeLocale(setLocale);
+  }, []);
+
   return (
     <>
-      <header className="site-header">
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z" />
-              <path d="M9 12l2 2 4-4" />
-            </svg>
-          </span>
-          {t.title}
-        </div>
-        <nav className="site-nav" aria-label="Sections">
-          {t.nav.map(([id, label]) => (
-            <a key={id} href={`#${id}`}>
-              {label}
-            </a>
-          ))}
-          <a className="nav-live" href="/live">
-            ⚔️ {t.liveDefense}
-          </a>
-        </nav>
-        <div className="lang-toggle" role="group" aria-label="Language">
-          <button className={locale === "en" ? "is-active" : ""} onClick={() => setLocale("en")}>
-            EN
-          </button>
-          <button className={locale === "zh-TW" ? "is-active" : ""} onClick={() => setLocale("zh-TW")}>
-            繁中
-          </button>
-        </div>
-      </header>
-
       <section className="hero" id="overview">
         <p className="eyebrow">{t.eyebrow}</p>
         <h1>{t.title}</h1>
@@ -231,7 +199,7 @@ export function Dashboard() {
       <div className="kpi-strip">
         <StatTile label={t.metricInclusion} score={assessment.inclusionScore} />
         <RiskTile label={t.metricFairness} risk={assessment.fairnessRisk} riskLabels={t.riskLabels} />
-        <StatTile label={t.metricOpenData} score={assessment.openDataReadiness} />
+        <StatTile label={t.metricOpenData} score={assessment.openDataReadiness} href="#open-data" hint={t.openDataHint} />
         <StatTile label={t.metricAgentSafety} score={assessment.agentSafetyReadiness} />
       </div>
 
@@ -271,6 +239,10 @@ export function Dashboard() {
               </div>
             </div>
             <p className="summary">{selected.summary}</p>
+
+            <a className="report-link" href={`/report?scenario=${selected.id}&locale=${locale}`}>
+              📄 {t.exportReport}
+            </a>
 
             <div className="two-column">
               <article>
@@ -364,7 +336,12 @@ export function Dashboard() {
             </ul>
           </article>
         </div>
+        <div style={{ marginTop: 14 }}>
+          <ErhAuditLog useCase={selected} locale={locale} />
+        </div>
       </section>
+
+      <OpenDataPanel locale={locale} scenarioId={selected.id} />
 
       <SdgPriorityPanel locale={locale} t={t} />
 
@@ -375,7 +352,9 @@ export function Dashboard() {
           <p>{t.consoleIntro}</p>
         </div>
         <div className="console-stack">
+          <ImpactBoard locale={locale} />
           <ApiSurfacePanel useCase={selected} t={t} />
+          <AttackSimulator locale={locale} />
           <Playground locale={locale} />
           <EnginesPanel useCase={selected} t={t} />
         </div>
@@ -396,10 +375,10 @@ function scoreSeverity(score: number): "good" | "warning" | "critical" {
   return "critical";
 }
 
-function StatTile({ label, score }: { label: string; score: number }) {
+function StatTile({ label, score, href, hint }: { label: string; score: number; href?: string; hint?: string }) {
   const severity = scoreSeverity(score);
-  return (
-    <article className="stat-tile">
+  const inner = (
+    <>
       <span className="stat-label">{label}</span>
       <div className="stat-value">
         {formatScore(score)}
@@ -408,8 +387,17 @@ function StatTile({ label, score }: { label: string; score: number }) {
       <div className={`meter meter-${severity}`} role="img" aria-label={`${label}: ${score} / 100`}>
         <i style={{ width: `${Math.min(100, Math.max(0, score))}%` }} />
       </div>
-    </article>
+      {hint && <span className="stat-hint">{hint} ›</span>}
+    </>
   );
+  if (href) {
+    return (
+      <a className="stat-tile stat-tile-link" href={href}>
+        {inner}
+      </a>
+    );
+  }
+  return <article className="stat-tile">{inner}</article>;
 }
 
 function RiskTile({

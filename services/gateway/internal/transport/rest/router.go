@@ -159,7 +159,17 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "dashboard failed"})
 		return
 	}
-	writeJSON(w, http.StatusOK, vm.BuildDashboard(list, len(list)))
+	// All-time cumulative metrics (not limited to the recent page). Degrade
+	// gracefully to page-derived values if a count query fails.
+	total, err := cqrs.Dispatch[queries.CountAssessments, int](r.Context(), s.bus, queries.CountAssessments{})
+	if err != nil {
+		total = len(list)
+	}
+	admByType, err := cqrs.Dispatch[adm.CountEventsByType, map[string]int](r.Context(), s.bus, adm.CountEventsByType{})
+	if err != nil {
+		admByType = map[string]int{}
+	}
+	writeJSON(w, http.StatusOK, vm.BuildDashboard(list, total, admByType))
 }
 
 type ingestEventRequest struct {

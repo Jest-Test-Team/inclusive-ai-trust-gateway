@@ -13,11 +13,13 @@ import (
 	"github.com/coder/websocket"
 
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/adm"
+	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/commerce"
 	"github.com/Jest-Test-Team/inclusive-ai-trust-gateway/services/gateway/internal/platform/eventbus"
 )
 
-// Channels relayed to every connected client.
-var relayChannels = []string{adm.EventChannel, "assessments.created"}
+// Channels relayed to every connected client. commerce.events surfaces UCP
+// trust-gate verdicts and session containment for the live EDR view.
+var relayChannels = []string{adm.EventChannel, "assessments.created", commerce.EventChannel}
 
 type Handler struct {
 	Bus    eventbus.Bus

@@ -78,8 +78,10 @@ func New(cfg config.Config) *App {
 	})
 	cqrs.Register[queries.GetAssessment, assessments.Assessment](bus, queries.GetAssessmentHandler{Repo: repo})
 	cqrs.Register[queries.ListAssessments, []assessments.Assessment](bus, queries.ListAssessmentsHandler{Repo: repo})
+	cqrs.Register[queries.CountAssessments, int](bus, queries.CountAssessmentsHandler{Repo: repo})
 	cqrs.Register[adm.IngestEvent, adm.SafetyEvent](bus, adm.IngestEventHandler{Store: store, Bus: events})
 	cqrs.Register[adm.ListEvents, []adm.SafetyEvent](bus, adm.ListEventsHandler{Store: store})
+	cqrs.Register[adm.CountEventsByType, map[string]int](bus, adm.CountEventsByTypeHandler{Store: store})
 
 	return &App{Cfg: cfg, Bus: bus, Events: events, Webhooks: hooks, Commerce: ucp}
 }

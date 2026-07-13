@@ -19,12 +19,173 @@ import {
   type Stats,
   type SystemService,
 } from "../lib/admConsole";
+import { readLocale, subscribeLocale } from "../lib/locale";
 
 const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
 const CATEGORY_ORDER = ["Edge", "Detection", "Agents", "Runtime", "Data", "Ops"];
 const TIMELINE_LIMIT = 1000;
 
+type Lang = "en" | "zh-TW";
+
+interface Dict {
+  eyebrow: string;
+  title: string;
+  sub: string;
+  live: string;
+  unreachable: string;
+  connecting: string;
+  attacks: string;
+  blockRate: string;
+  detectionRate: string;
+  landed: string;
+  remediations: string;
+  mttr: string;
+  residualRisk: string;
+  blockedLanded: string;
+  liveFeed: string;
+  noStream: string;
+  waiting: string;
+  byTechnique: string;
+  blocked: string;
+  landedLegend: string;
+  loading: string;
+  systemStatus: string;
+  checkingServices: string;
+  llmProviders: string;
+  checking: string;
+  recentSessions: string;
+  colTechnique: string;
+  colTarget: string;
+  colAttack: string;
+  colRemediation: string;
+  notNeeded: string;
+  pending: string;
+  noSessions: string;
+  matrix: string;
+  matrixId: string;
+  matrixAttack: string;
+  matrixTechnique: string;
+  endpoints: string;
+  save: string;
+  endpointHint: string;
+  operational: string;
+  disabled: string;
+  down: string;
+  inUse: string;
+  standby: string;
+  notConfigured: string;
+  active: string;
+}
+
+const DICT: Record<Lang, Dict> = {
+  en: {
+    eyebrow: "Agentic Defense Matrix · Live",
+    title: "⚔️ ADM Battle Console",
+    sub: "Autonomous red-team vs. blue-team battles running against the live gateway — real attacks, real blocks, streamed as they happen.",
+    live: "Live",
+    unreachable: "Unreachable",
+    connecting: "Connecting…",
+    attacks: "Attacks",
+    blockRate: "Block rate",
+    detectionRate: "Detection rate",
+    landed: "Landed",
+    remediations: "Remediations",
+    mttr: "MTTR",
+    residualRisk: "Residual risk",
+    blockedLanded: "Blocked / Landed",
+    liveFeed: "Live battle feed",
+    noStream: "No live stream.",
+    waiting: "Waiting for battle events…",
+    byTechnique: "By technique",
+    blocked: "Blocked",
+    landedLegend: "Landed",
+    loading: "Loading…",
+    systemStatus: "System status",
+    checkingServices: "Checking services…",
+    llmProviders: "LLM providers",
+    checking: "Checking…",
+    recentSessions: "Recent sessions",
+    colTechnique: "Technique",
+    colTarget: "Target",
+    colAttack: "Attack",
+    colRemediation: "Remediation",
+    notNeeded: "not needed",
+    pending: "pending",
+    noSessions: "No sessions yet.",
+    matrix: "Red-team attack matrix (30 techniques)",
+    matrixId: "ID",
+    matrixAttack: "Attack",
+    matrixTechnique: "Technique",
+    endpoints: "Endpoints",
+    save: "Save",
+    endpointHint: "Or append ?api=…&gw=… to the URL.",
+    operational: "Operational",
+    disabled: "Disabled",
+    down: "Down",
+    inUse: "In use",
+    standby: "Standby",
+    notConfigured: "Not configured",
+    active: "active",
+  },
+  "zh-TW": {
+    eyebrow: "代理防禦矩陣 · 即時",
+    title: "⚔️ ADM 對抗主控台",
+    sub: "自主紅隊對藍隊在即時閘道上實戰 — 真實攻擊、真實攔截，即時串流呈現。",
+    live: "連線中",
+    unreachable: "無法連線",
+    connecting: "連線中…",
+    attacks: "攻擊次數",
+    blockRate: "攔截率",
+    detectionRate: "偵測率",
+    landed: "命中",
+    remediations: "修復次數",
+    mttr: "平均修復時間",
+    residualRisk: "殘餘風險",
+    blockedLanded: "攔截／命中",
+    liveFeed: "即時對抗串流",
+    noStream: "無即時串流。",
+    waiting: "等待對抗事件…",
+    byTechnique: "各攻擊技術",
+    blocked: "已攔截",
+    landedLegend: "已命中",
+    loading: "載入中…",
+    systemStatus: "系統狀態",
+    checkingServices: "檢查服務中…",
+    llmProviders: "LLM 供應商",
+    checking: "檢查中…",
+    recentSessions: "最近的對抗",
+    colTechnique: "技術",
+    colTarget: "目標",
+    colAttack: "攻擊",
+    colRemediation: "修復",
+    notNeeded: "無需修復",
+    pending: "處理中",
+    noSessions: "尚無對抗紀錄。",
+    matrix: "紅隊攻擊矩陣（30 種技術）",
+    matrixId: "編號",
+    matrixAttack: "攻擊",
+    matrixTechnique: "技術",
+    endpoints: "端點設定",
+    save: "儲存",
+    endpointHint: "或在網址加上 ?api=…&gw=… 參數。",
+    operational: "運作中",
+    disabled: "已停用",
+    down: "已離線",
+    inUse: "使用中",
+    standby: "待命",
+    notConfigured: "未設定",
+    active: "使用中",
+  },
+};
+
 export function BattleConsole() {
+  const [lang, setLang] = useState<Lang>("en");
+  const t = DICT[lang];
+  useEffect(() => {
+    setLang(readLocale());
+    return subscribeLocale(setLang);
+  }, []);
+
   const [cfg, setCfg] = useState<ApiConfig | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
@@ -105,42 +266,39 @@ export function BattleConsole() {
     <div className="bc-root">
       <div className="bc-head">
         <div>
-          <p className="eyebrow">Agentic Defense Matrix · Live</p>
-          <h2>⚔️ ADM Battle Console</h2>
-          <p className="bc-sub">
-            Autonomous red-team vs. blue-team battles running against the live gateway — real attacks,
-            real blocks, streamed as they happen.
-          </p>
+          <p className="eyebrow">{t.eyebrow}</p>
+          <h2>{t.title}</h2>
+          <p className="bc-sub">{t.sub}</p>
         </div>
-        <div className={`bc-conn bc-conn-${connected === true ? "live" : connected === false ? "down" : "idle"}`}>
-          <span />
-          {connected === true ? "Live" : connected === false ? "Unreachable" : "Connecting…"}
+        <div className="bc-head-tools">
+          <div className={`bc-conn bc-conn-${connected === true ? "live" : connected === false ? "down" : "idle"}`}>
+            <span />
+            {connected === true ? t.live : connected === false ? t.unreachable : t.connecting}
+          </div>
         </div>
       </div>
 
       <div className="bc-tiles">
-        <Tile k="Attacks" v={stats ? String(stats.attacks) : "–"} tone="critical" />
-        <Tile k="Block rate" v={stats ? pct(stats.block_rate) : "–"} tone="good" />
-        <Tile k="Detection rate" v={stats ? pct(stats.detection_rate) : "–"} tone="good" />
-        <Tile k="Landed" v={stats ? String(stats.landed) : "–"} tone="critical" />
-        <Tile k="Remediations" v={stats ? String(stats.remediations) : "–"} tone="good" />
+        <Tile k={t.attacks} v={stats ? String(stats.attacks) : "–"} tone="critical" />
+        <Tile k={t.blockRate} v={stats ? pct(stats.block_rate) : "–"} tone="good" />
+        <Tile k={t.detectionRate} v={stats ? pct(stats.detection_rate) : "–"} tone="good" />
+        <Tile k={t.landed} v={stats ? String(stats.landed) : "–"} tone="critical" />
+        <Tile k={t.remediations} v={stats ? String(stats.remediations) : "–"} tone="good" />
         <Tile
-          k="MTTR"
+          k={t.mttr}
           v={stats ? (stats.mttr_seconds == null ? "–" : `${stats.mttr_seconds.toFixed(1)}s`) : "–"}
           tone="warning"
         />
-        <Tile k="Residual risk" v={stats ? String(stats.residual_risk) : "–"} tone="warning" />
-        <Tile k="Blocked / Landed" v={stats ? `${blockedRows.length} / ${landedRows.length}` : "–"} tone="good" />
+        <Tile k={t.residualRisk} v={stats ? String(stats.residual_risk) : "–"} tone="warning" />
+        <Tile k={t.blockedLanded} v={stats ? `${blockedRows.length} / ${landedRows.length}` : "–"} tone="good" />
       </div>
 
       <div className="bc-grid2">
         <section>
-          <h3 className="bc-section">Live battle feed</h3>
+          <h3 className="bc-section">{t.liveFeed}</h3>
           <div className="bc-panel bc-tall">
             {events.length === 0 && (
-              <div className="bc-row bc-muted">
-                {connected === false ? "No live stream." : "Waiting for battle events…"}
-              </div>
+              <div className="bc-row bc-muted">{connected === false ? t.noStream : t.waiting}</div>
             )}
             {events.map((ev, i) => (
               <EventRow key={ev.id ?? i} ev={ev} />
@@ -149,46 +307,46 @@ export function BattleConsole() {
         </section>
 
         <section>
-          <h3 className="bc-section">By technique</h3>
+          <h3 className="bc-section">{t.byTechnique}</h3>
           <div className="bc-panel bc-tall">
             <div className="bc-legend">
               <span>
                 <i style={{ background: "var(--brand-500)" }} />
-                Blocked
+                {t.blocked}
               </span>
               <span>
                 <i style={{ background: "var(--critical)" }} />
-                Landed
+                {t.landedLegend}
               </span>
             </div>
             {(stats?.by_technique ?? []).map((tech) => (
               <TechRow key={tech.technique} name={tech.technique} blocked={tech.blocked} landed={tech.landed} />
             ))}
-            {!stats && <div className="bc-row bc-muted">Loading…</div>}
+            {!stats && <div className="bc-row bc-muted">{t.loading}</div>}
           </div>
         </section>
       </div>
 
-      <h3 className="bc-section">System status</h3>
+      <h3 className="bc-section">{t.systemStatus}</h3>
       <div className="bc-status-grid">
-        {services.length === 0 && <div className="bc-status-card bc-muted">Checking services…</div>}
+        {services.length === 0 && <div className="bc-status-card bc-muted">{t.checkingServices}</div>}
         {CATEGORY_ORDER.flatMap((cat) => services.filter((s) => s.category === cat)).map((s) => (
-          <ServiceCard key={s.name} svc={s} />
+          <ServiceCard key={s.name} svc={s} t={t} />
         ))}
       </div>
 
-      <h3 className="bc-section">LLM providers</h3>
+      <h3 className="bc-section">{t.llmProviders}</h3>
       <div className="bc-status-grid">
-        {llm ? llm.providers.map((p) => <LlmCard key={p.role} p={p} />) : <div className="bc-status-card bc-muted">Checking…</div>}
+        {llm ? llm.providers.map((p) => <LlmCard key={p.role} p={p} t={t} />) : <div className="bc-status-card bc-muted">{t.checking}</div>}
       </div>
 
-      <h3 className="bc-section">Recent sessions</h3>
+      <h3 className="bc-section">{t.recentSessions}</h3>
       <div className="bc-panel">
         <div className="bc-row bc-row-head">
-          <span style={{ width: 96 }}>Technique</span>
-          <span style={{ width: 96 }}>Target</span>
-          <span>Attack</span>
-          <span className="bc-out">Remediation</span>
+          <span style={{ width: 96 }}>{t.colTechnique}</span>
+          <span style={{ width: 96 }}>{t.colTarget}</span>
+          <span>{t.colAttack}</span>
+          <span className="bc-out">{t.colRemediation}</span>
         </div>
         {sessions.slice(0, 20).map((s) => (
           <div className="bc-row" key={s.session_id}>
@@ -203,22 +361,22 @@ export function BattleConsole() {
               {s.remediation_outcome
                 ? `${s.remediation_outcome}${s.mttr_seconds != null ? ` · ${s.mttr_seconds.toFixed(1)}s` : ""}`
                 : s.attack_outcome === "blocked"
-                  ? "not needed"
-                  : "pending"}
+                  ? t.notNeeded
+                  : t.pending}
             </span>
           </div>
         ))}
-        {sessions.length === 0 && <div className="bc-row bc-muted">No sessions yet.</div>}
+        {sessions.length === 0 && <div className="bc-row bc-muted">{t.noSessions}</div>}
       </div>
 
-      <h3 className="bc-section">Red-team attack matrix (30 techniques)</h3>
+      <h3 className="bc-section">{t.matrix}</h3>
       <div className="bc-panel bc-matrix-wrap">
         <table className="bc-matrix">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Attack</th>
-              <th>Technique</th>
+              <th>{t.matrixId}</th>
+              <th>{t.matrixAttack}</th>
+              <th>{t.matrixTechnique}</th>
             </tr>
           </thead>
           <tbody>
@@ -233,7 +391,7 @@ export function BattleConsole() {
         </table>
       </div>
 
-      <Settings cfg={cfg} />
+      <Settings cfg={cfg} t={t} />
     </div>
   );
 }
@@ -285,10 +443,10 @@ function EventRow({ ev }: { ev: BattleEvent }) {
   );
 }
 
-function ServiceCard({ svc }: { svc: SystemService }) {
+function ServiceCard({ svc, t }: { svc: SystemService; t: Dict }) {
   const tone = svc.status === "up" ? "good" : svc.status === "disabled" ? "warning" : "critical";
   const icon = svc.status === "up" ? "✓" : svc.status === "disabled" ? "○" : "✕";
-  const word = svc.status === "up" ? "Operational" : svc.status === "disabled" ? "Disabled" : "Down";
+  const word = svc.status === "up" ? t.operational : svc.status === "disabled" ? t.disabled : t.down;
   return (
     <div className="bc-status-card">
       <span className={`bc-pill bc-pill-${tone}`}>{icon}</span>
@@ -303,18 +461,18 @@ function ServiceCard({ svc }: { svc: SystemService }) {
   );
 }
 
-function LlmCard({ p }: { p: LlmStatus["providers"][number] }) {
+function LlmCard({ p, t }: { p: LlmStatus["providers"][number]; t: Dict }) {
   const standby = p.status === "up" && !p.active;
   const tone = p.status === "up" ? "good" : p.status === "unconfigured" ? "warning" : "critical";
   const icon = p.active ? "▶" : p.status === "up" ? "✓" : p.status === "unconfigured" ? "○" : "✕";
-  const word = p.active ? "In use" : standby ? "Standby" : p.status === "unconfigured" ? "Not configured" : "Down";
+  const word = p.active ? t.inUse : standby ? t.standby : p.status === "unconfigured" ? t.notConfigured : t.down;
   return (
     <div className="bc-status-card">
       <span className={`bc-pill bc-pill-${tone}`}>{icon}</span>
       <div>
         <div className="bc-svc-name">
           {p.name} <span className="bc-svc-tech">{p.role}</span>
-          {p.active && <span className="bc-tag bc-tag-green" style={{ marginLeft: 6 }}>active</span>}
+          {p.active && <span className="bc-tag bc-tag-green" style={{ marginLeft: 6 }}>{t.active}</span>}
         </div>
         <div className={`bc-svc-word bc-${tone}`}>{word}</div>
       </div>
@@ -322,7 +480,7 @@ function LlmCard({ p }: { p: LlmStatus["providers"][number] }) {
   );
 }
 
-function Settings({ cfg }: { cfg: ApiConfig | null }) {
+function Settings({ cfg, t }: { cfg: ApiConfig | null; t: Dict }) {
   const [analysis, setAnalysis] = useState("");
   const [gateway, setGateway] = useState("");
   useEffect(() => {
@@ -333,7 +491,7 @@ function Settings({ cfg }: { cfg: ApiConfig | null }) {
   }, [cfg]);
   return (
     <>
-      <h3 className="bc-section">Endpoints</h3>
+      <h3 className="bc-section">{t.endpoints}</h3>
       <div className="bc-settings">
         <input value={analysis} onChange={(e) => setAnalysis(e.target.value)} placeholder="Analysis API URL" />
         <input value={gateway} onChange={(e) => setGateway(e.target.value)} placeholder="Gateway URL" />
@@ -343,9 +501,9 @@ function Settings({ cfg }: { cfg: ApiConfig | null }) {
             window.location.search = "";
           }}
         >
-          Save
+          {t.save}
         </button>
-        <span className="bc-muted">Or append ?api=…&amp;gw=… to the URL.</span>
+        <span className="bc-muted">{t.endpointHint}</span>
       </div>
     </>
   );

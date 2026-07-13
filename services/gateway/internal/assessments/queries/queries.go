@@ -26,3 +26,12 @@ type ListAssessmentsHandler struct{ Repo assessments.Repository }
 func (h ListAssessmentsHandler) Handle(ctx context.Context, q ListAssessments) ([]assessments.Assessment, error) {
 	return h.Repo.List(ctx, q.Limit)
 }
+
+// CountAssessments returns the all-time number of stored assessments.
+type CountAssessments struct{}
+
+type CountAssessmentsHandler struct{ Repo assessments.Repository }
+
+func (h CountAssessmentsHandler) Handle(ctx context.Context, _ CountAssessments) (int, error) {
+	return h.Repo.Count(ctx)
+}
