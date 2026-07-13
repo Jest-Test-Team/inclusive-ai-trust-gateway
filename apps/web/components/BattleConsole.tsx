@@ -19,6 +19,7 @@ import {
   type Stats,
   type SystemService,
 } from "../lib/admConsole";
+import { readLocale, subscribeLocale } from "../lib/locale";
 
 const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
 const CATEGORY_ORDER = ["Edge", "Detection", "Agents", "Runtime", "Data", "Ops"];
@@ -181,13 +182,9 @@ export function BattleConsole() {
   const [lang, setLang] = useState<Lang>("en");
   const t = DICT[lang];
   useEffect(() => {
-    const saved = typeof window !== "undefined" ? window.localStorage.getItem("adm_lang") : null;
-    if (saved === "zh-TW" || saved === "en") setLang(saved);
+    setLang(readLocale());
+    return subscribeLocale(setLang);
   }, []);
-  const switchLang = (l: Lang) => {
-    setLang(l);
-    if (typeof window !== "undefined") window.localStorage.setItem("adm_lang", l);
-  };
 
   const [cfg, setCfg] = useState<ApiConfig | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -274,14 +271,6 @@ export function BattleConsole() {
           <p className="bc-sub">{t.sub}</p>
         </div>
         <div className="bc-head-tools">
-          <div className="lang-toggle" role="group" aria-label="Language">
-            <button className={lang === "en" ? "is-active" : ""} onClick={() => switchLang("en")}>
-              EN
-            </button>
-            <button className={lang === "zh-TW" ? "is-active" : ""} onClick={() => switchLang("zh-TW")}>
-              繁中
-            </button>
-          </div>
           <div className={`bc-conn bc-conn-${connected === true ? "live" : connected === false ? "down" : "idle"}`}>
             <span />
             {connected === true ? t.live : connected === false ? t.unreachable : t.connecting}

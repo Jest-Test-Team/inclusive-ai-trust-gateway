@@ -25,6 +25,7 @@ import {
   type PublicServiceUseCase,
 } from "@iatg/shared";
 import { apiBaseURL, apiKey, gateway, liveMode, openLiveFeed } from "../lib/api";
+import { readLocale, subscribeLocale } from "../lib/locale";
 import { Playground } from "./Playground";
 import { AttackSimulator } from "./AttackSimulator";
 import { ErhAuditLog } from "./ErhAuditLog";
@@ -38,14 +39,6 @@ const copy = {
     intro:
       "A public-service AI evaluation and protection platform that audits fairness, explains risk, and protects AI agents from misuse so governments can deploy AI services safely and inclusively.",
     heroChips: ["ERH fairness engine", "ADM agent safety", "Trust-gated UCP commerce", "Open-data evidence"],
-    nav: [
-      ["overview", "Overview"],
-      ["scenarios", "Scenarios"],
-      ["evidence", "Trust Evidence"],
-      ["open-data", "Open Data"],
-      ["sdg", "SDGs"],
-      ["console", "Live Console"],
-    ],
     scenarios: "Service Scenarios",
     scenariosIntro:
       "Pick a public-service scenario to see who it serves, what safeguards it needs, and how the trust scores react.",
@@ -100,7 +93,6 @@ const copy = {
     erhResult: "ERH verdict for this scenario",
     erhHealthy: "within the ERH bound",
     erhUnhealthy: "structural error growth detected",
-    liveDefense: "Live Defense",
     exportReport: "Export audit report (PDF)",
     openDataHint: "See which open data is used",
     footerLeft: "Inclusive AI Trust Gateway — hackathon MVP",
@@ -112,14 +104,6 @@ const copy = {
     intro:
       "一個面向公共服務的 AI 評估與防護平台，用 API 證據檢查公平性、解釋風險，並保護 AI 代理不被濫用。",
     heroChips: ["ERH 公平性引擎", "ADM 代理安全", "UCP 交易信任把關", "開放資料佐證"],
-    nav: [
-      ["overview", "總覽"],
-      ["scenarios", "服務情境"],
-      ["evidence", "信任證據"],
-      ["open-data", "開放資料"],
-      ["sdg", "SDG 對應"],
-      ["console", "即時主控台"],
-    ],
     scenarios: "服務情境",
     scenariosIntro: "選擇一個公共服務情境，查看服務對象、所需防護措施，以及信任分數的變化。",
     targetUsers: "目標使用者",
@@ -172,7 +156,6 @@ const copy = {
     erhResult: "此情境的 ERH 評估結果",
     erhHealthy: "在 ERH 健康界線內",
     erhUnhealthy: "偵測到結構性錯誤成長",
-    liveDefense: "即時防禦",
     exportReport: "匯出稽核報告（PDF）",
     openDataHint: "查看使用了哪些開放資料",
     footerLeft: "包容式 AI 信任閘道 — 黑客松 MVP",
@@ -195,38 +178,13 @@ export function Dashboard() {
   );
   const t = copy[locale];
 
+  useEffect(() => {
+    setLocale(readLocale());
+    return subscribeLocale(setLocale);
+  }, []);
+
   return (
     <>
-      <header className="site-header">
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z" />
-              <path d="M9 12l2 2 4-4" />
-            </svg>
-          </span>
-          {t.title}
-        </div>
-        <nav className="site-nav" aria-label="Sections">
-          {t.nav.map(([id, label]) => (
-            <a key={id} href={`#${id}`}>
-              {label}
-            </a>
-          ))}
-          <a className="nav-live" href="/live">
-            ⚔️ {t.liveDefense}
-          </a>
-        </nav>
-        <div className="lang-toggle" role="group" aria-label="Language">
-          <button className={locale === "en" ? "is-active" : ""} onClick={() => setLocale("en")}>
-            EN
-          </button>
-          <button className={locale === "zh-TW" ? "is-active" : ""} onClick={() => setLocale("zh-TW")}>
-            繁中
-          </button>
-        </div>
-      </header>
-
       <section className="hero" id="overview">
         <p className="eyebrow">{t.eyebrow}</p>
         <h1>{t.title}</h1>
