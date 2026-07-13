@@ -26,6 +26,7 @@ import {
 } from "@iatg/shared";
 import { apiBaseURL, apiKey, gateway, liveMode, openLiveFeed } from "../lib/api";
 import { Playground } from "./Playground";
+import { AttackSimulator } from "./AttackSimulator";
 
 const copy = {
   en: {
@@ -376,6 +377,7 @@ export function Dashboard() {
         </div>
         <div className="console-stack">
           <ApiSurfacePanel useCase={selected} t={t} />
+          <AttackSimulator locale={locale} />
           <Playground locale={locale} />
           <EnginesPanel useCase={selected} t={t} />
         </div>
