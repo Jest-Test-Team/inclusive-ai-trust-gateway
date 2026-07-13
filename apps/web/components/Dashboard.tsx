@@ -28,6 +28,7 @@ import { apiBaseURL, apiKey, gateway, liveMode, openLiveFeed } from "../lib/api"
 import { Playground } from "./Playground";
 import { AttackSimulator } from "./AttackSimulator";
 import { ErhAuditLog } from "./ErhAuditLog";
+import { OpenDataPanel } from "./OpenDataPanel";
 
 const copy = {
   en: {
@@ -40,6 +41,7 @@ const copy = {
       ["overview", "Overview"],
       ["scenarios", "Scenarios"],
       ["evidence", "Trust Evidence"],
+      ["open-data", "Open Data"],
       ["sdg", "SDGs"],
       ["console", "Live Console"],
     ],
@@ -111,6 +113,7 @@ const copy = {
       ["overview", "總覽"],
       ["scenarios", "服務情境"],
       ["evidence", "信任證據"],
+      ["open-data", "開放資料"],
       ["sdg", "SDG 對應"],
       ["console", "即時主控台"],
     ],
@@ -370,6 +373,8 @@ export function Dashboard() {
           <ErhAuditLog useCase={selected} locale={locale} />
         </div>
       </section>
+
+      <OpenDataPanel locale={locale} scenarioId={selected.id} />
 
       <SdgPriorityPanel locale={locale} t={t} />
 

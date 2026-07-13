@@ -1032,6 +1032,7 @@ li + li {
   .purpose-grid,
   .api-grid,
   .sdg-priority-grid,
+  .opendata-grid,
   .service-tabs {
     grid-template-columns: 1fr;
   }
@@ -1048,6 +1049,107 @@ li + li {
     align-items: flex-start;
     flex-direction: column;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Open-data module
+--------------------------------------------------------------------------- */
+.opendata-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.opendata-card {
+  padding: 20px;
+}
+
+.opendata-active {
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 1px var(--brand-500), var(--shadow-soft);
+}
+
+.opendata-head {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.opendata-head h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.opendata-agency {
+  margin: 4px 0 0;
+  color: var(--ink-3);
+  font-size: 0.82rem;
+}
+
+.opendata-link {
+  flex: none;
+  color: var(--brand-600);
+  font-size: 0.82rem;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.opendata-flag {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--brand-100);
+  color: var(--brand-800);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.opendata-dl {
+  margin: 14px 0 0;
+}
+
+.opendata-dl dt {
+  margin-top: 12px;
+  color: var(--brand-600);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.opendata-dl dd {
+  margin: 4px 0 0;
+  color: var(--ink-2);
+  font-size: 0.9rem;
+}
+
+.opendata-bias-dt {
+  color: var(--critical-ink) !important;
+}
+
+.opendata-bias {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--critical-track);
+  color: var(--critical-ink) !important;
+}
+
+.opendata-give-dt {
+  color: var(--good-ink) !important;
+}
+
+.opendata-fields {
+  margin: 4px 0 0;
+  padding-left: 16px;
+}
+
+.opendata-fields code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  color: var(--brand-800);
 }
 
 /* ---------------------------------------------------------------------------

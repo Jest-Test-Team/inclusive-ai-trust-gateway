@@ -5,4 +5,5 @@ export * from "./schemas";
 export * from "./gatewayApi";
 export * from "./engineApi";
 export * from "./sdgPriorities";
+export * from "./openData";
 export * from "./i18n";
