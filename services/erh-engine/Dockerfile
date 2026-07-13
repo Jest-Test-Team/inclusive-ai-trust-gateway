@@ -1,5 +1,8 @@
 # Self-contained ERH Engine deployment (Choreo or any container host).
 # Build context: services/erh-engine
+#
+# Choreo routes traffic to the container port declared in .choreo/component.yaml.
+# Listen on PORT (default 8080) so Choreo's injected PORT and the endpoint agree.
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -17,14 +20,15 @@ COPY erh_engine/ ./erh_engine/
 
 ENV PYTHONPATH=/app
 ENV ERH_MODE=rest
+ENV PORT=8080
 
-EXPOSE 8000
+EXPOSE 8080
 
 # Choreo requires a numeric non-root UID in the 10000-20000 range.
 RUN useradd --uid 10014 --create-home iatg
 USER 10014
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-8000}/v1/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+    CMD curl -f http://127.0.0.1:${PORT:-8080}/v1/health || exit 1
 
 CMD ["python", "-m", "erh_engine.serve"]

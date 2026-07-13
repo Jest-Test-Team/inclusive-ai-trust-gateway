@@ -9,7 +9,7 @@ builds from a Dockerfile in this repository and gets a **stable public URL**
 |---|---|---|---:|---|
 | `trust-gateway` | `./` (repo root) | `Dockerfile` | `8080` | Go gateway (`services/gateway`) |
 | `adm-stack` | `services/adm-stack` | `Dockerfile` | `8080` | Combined ADM gateway + SIEM; embeds Redis |
-| `erh-engine` | `services/erh-engine` | `Dockerfile` | `8000` | Vendored Ethic-Latex ERH engine |
+| `erh-engine` | `services/erh-engine` | `Dockerfile` | `8080` | Vendored Ethic-Latex ERH engine |
 
 Local development still uses `infra/docker/docker-compose.yml`.
 
@@ -71,7 +71,7 @@ For external Redis (e.g. Upstash), set `ADM_EMBED_REDIS=0` and point
 
 ```env
 ERH_MODE=rest
-PORT=8000
+PORT=8080
 ```
 
 After deploy, set `ERH_SERVICE_URL` on the gateway component to the ERH

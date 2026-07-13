@@ -38,7 +38,14 @@ interface PlaygroundCopy {
   colEvaluator: string;
   colCreated: string;
   offline: string;
+  ucpHint: string;
+  resultTitle: string;
+  reasonLabel: string;
+  productLabel: string;
+  productFair: string;
+  productGouge: string;
   verdict: Record<string, string>;
+  verdictExplain: Record<string, string>;
 }
 
 const playgroundCopy: Record<Locale, PlaygroundCopy> = {
@@ -68,7 +75,19 @@ const playgroundCopy: Record<Locale, PlaygroundCopy> = {
     colEvaluator: "Evaluator",
     colCreated: "Created",
     offline: "Offline demo mode - the playground needs the live gateway.",
-    verdict: { allowed: "Allowed", flagged: "Flagged for review", blocked: "Blocked" },
+    ucpHint:
+      "Tip: fair-priced items (CARE-001~003) should be Allowed. CARE-004 is an intentional price-gouge demo and should be Blocked.",
+    resultTitle: "Trust gate result",
+    reasonLabel: "Why",
+    productLabel: "Product tried",
+    productFair: "fair reference",
+    productGouge: "overpriced — will be blocked",
+    verdict: { allowed: "Allowed — checkout may proceed", flagged: "Flagged — needs human review", blocked: "Blocked — checkout stopped" },
+    verdictExplain: {
+      allowed: "Price is within the fair open-data reference.",
+      flagged: "Price is elevated; the gate asks for review before paying.",
+      blocked: "Price is more than 50% above the fair reference, so the trust gate refused the purchase.",
+    },
   },
   "zh-TW": {
     title: "API 遊樂場",
@@ -96,7 +115,19 @@ const playgroundCopy: Record<Locale, PlaygroundCopy> = {
     colEvaluator: "評估器",
     colCreated: "建立時間",
     offline: "離線示範模式 - 遊樂場需要連上即時閘道。",
-    verdict: { allowed: "允許", flagged: "標記待人工審核", blocked: "已阻擋" },
+    ucpHint:
+      "提示：公平定價商品（CARE-001～003）應顯示「允許」。CARE-004 是故意偏高的示範商品，信任閘道會「阻擋」。",
+    resultTitle: "信任把關結果",
+    reasonLabel: "原因",
+    productLabel: "嘗試結帳的商品",
+    productFair: "公平參考",
+    productGouge: "偏高，會被擋",
+    verdict: { allowed: "允許 — 可以結帳", flagged: "標記 — 需人工審核", blocked: "已阻擋 — 結帳被拒絕" },
+    verdictExplain: {
+      allowed: "售價落在開放資料的公平參考價範圍內。",
+      flagged: "售價偏高，閘道要求先人工確認再付款。",
+      blocked: "售價比公平參考價高出超過 50%，信任閘道拒絕這筆購買。",
+    },
   },
 };
 
@@ -150,7 +181,8 @@ export function Playground({ locale }: { locale: Locale }) {
         const session = await gateway.openCommerceSession("playground", scenario.personas[0]?.id ?? "persona");
         const discovery = await gateway.discoverProducts(session.id, "");
         setProducts(discovery.products);
-        if (discovery.products.length > 0) setSku(discovery.products[0].sku);
+        const preferred = discovery.products.find((p) => p.sku !== "CARE-004") ?? discovery.products[0];
+        if (preferred) setSku(preferred.sku);
       } catch {
         // leave dropdown empty; send will surface the error
       }
@@ -210,17 +242,29 @@ export function Playground({ locale }: { locale: Locale }) {
         }
         case "ucp-checkout": {
           const session = await gateway.openCommerceSession("playground", scenario.personas[0]?.id ?? "persona");
-          const checkout = await gateway.createCheckoutIntent(session.id, sku, quantity);
+          // Prefer an allowed/fair SKU for demo scoring; CARE-004 is the
+          // intentional "price gouge" product that the trust gate blocks.
+          const checkoutSku = sku || products.find((p) => p.sku !== "CARE-004")?.sku || products[0]?.sku || "";
+          if (!checkoutSku) throw new Error("No product available from UCP catalog");
+          const product = products.find((p) => p.sku === checkoutSku);
+          const checkout = await gateway.createCheckoutIntent(session.id, checkoutSku, quantity);
           setRaw(JSON.stringify(checkout, null, 2));
           const verdict = checkout.trust.trustVerdict;
+          const productLine = product
+            ? `${product.name} · ${product.priceTWD} TWD（${t.productFair} ${product.fairPriceTWD} TWD）`
+            : checkoutSku;
           setCards([
             {
-              label: "Verdict",
+              label: t.resultTitle,
               value: t.verdict[verdict] ?? verdict,
               tone: verdict === "allowed" ? "ok" : verdict === "flagged" ? "warn" : "fail",
             },
-            { label: t.product, value: sku, tone: "ok" },
-            ...(checkout.trust.reason ? [{ label: "Reason", value: checkout.trust.reason, tone: "fail" as const }] : []),
+            {
+              label: t.reasonLabel,
+              value: checkout.trust.reason || t.verdictExplain[verdict] || "—",
+              tone: verdict === "allowed" ? "ok" : verdict === "flagged" ? "warn" : "fail",
+            },
+            { label: t.productLabel, value: productLine, tone: "ok" },
           ]);
           break;
         }
@@ -306,12 +350,15 @@ export function Playground({ locale }: { locale: Locale }) {
 
         {action === "ucp-checkout" && (
           <>
+            <p className="api-empty playground-hint">{t.ucpHint}</p>
             <label>
               {t.product}
               <select value={sku} onChange={(e) => setSku(e.target.value)}>
                 {products.map((p) => (
                   <option key={p.sku} value={p.sku}>
-                    {p.name} ({p.priceTWD} TWD)
+                    {p.sku === "CARE-004"
+                      ? `${p.name} · ${p.priceTWD} TWD（${t.productGouge}）`
+                      : `${p.name} · ${p.priceTWD} TWD（${t.productFair} ${p.fairPriceTWD}）`}
                   </option>
                 ))}
               </select>

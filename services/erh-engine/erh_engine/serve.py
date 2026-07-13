@@ -15,7 +15,7 @@ import threading
 def _run_rest() -> None:
     import uvicorn
 
-    port = int(os.environ.get("PORT", "8000"))
+    port = int(os.environ.get("PORT", "8080"))
     uvicorn.run("erh_engine.rest.main:app", host="0.0.0.0", port=port)
 
 

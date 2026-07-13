@@ -162,11 +162,22 @@ export function createGatewayClient(config: GatewayClientConfig) {
       });
     },
 
-    createCheckoutIntent(sessionId: string, sku: string, quantity = 1) {
-      return request<{ trust: TraceEvent }>("/ucp/v1/checkout-intents", {
+    async createCheckoutIntent(sessionId: string, sku: string, quantity = 1) {
+      // Trust gate returns 403 when checkout is blocked; that is a valid
+      // verdict payload, not a transport failure.
+      if (!baseURL) throw new Error("Gateway API base URL is not configured");
+      const headers = new Headers({ "Content-Type": "application/json", "X-Api-Key": apiKey });
+      const res = await fetcher(`${baseURL}/ucp/v1/checkout-intents`, {
         method: "POST",
+        headers,
         body: JSON.stringify({ sessionId, sku, quantity }),
       });
+      const body = (await res.json().catch(() => null)) as { trust?: TraceEvent } | null;
+      if (body?.trust?.trustVerdict) return { trust: body.trust };
+      if (!res.ok) {
+        throw new Error(`gateway ${res.status}${body ? `: ${JSON.stringify(body)}` : ""}`);
+      }
+      throw new Error("gateway checkout response missing trust verdict");
     },
 
     traceCommerce() {

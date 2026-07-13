@@ -644,6 +644,16 @@ li + li {
   margin: 14px 0;
 }
 
+.playground-hint {
+  flex: 1 1 100%;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #eef7f4;
+  border-left: 4px solid #0d5d4e;
+  color: #1b3d38;
+}
+
 .playground-form label {
   display: flex;
   flex-direction: column;
