@@ -174,6 +174,30 @@ func TestCreateAssessmentContract(t *testing.T) {
 	}
 }
 
+func TestReassessStaleEndpoint(t *testing.T) {
+	srv := newTestServer(t)
+	created := decode(t, doJSON(t, http.MethodPost, srv.URL+"/v1/assessments", "test-key", sampleUseCase))
+	id := created["id"].(string)
+
+	// Force a legacy fingerprint in memory is not possible via API; endpoint should succeed with 0 updates.
+	resp := doJSON(t, http.MethodPost, srv.URL+"/v1/assessments/reassess-stale", "test-key", map[string]any{})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	body := decode(t, resp)
+	if body["updated"] == nil {
+		t.Fatalf("missing updated count: %v", body)
+	}
+
+	reassess := doJSON(t, http.MethodPost, srv.URL+"/v1/assessments/"+id+"/reassess", "test-key", map[string]any{})
+	if reassess.StatusCode != http.StatusOK {
+		t.Fatalf("reassess status = %d, want 200", reassess.StatusCode)
+	}
+	if got := decode(t, reassess); got["id"] != id {
+		t.Fatalf("id = %v, want %s", got["id"], id)
+	}
+}
+
 func TestGetAssessmentRoundTrip(t *testing.T) {
 	srv := newTestServer(t)
 	created := decode(t, doJSON(t, http.MethodPost, srv.URL+"/v1/assessments", "test-key", sampleUseCase))
