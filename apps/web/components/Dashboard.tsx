@@ -415,10 +415,10 @@ function scoreSeverity(score: number): "good" | "warning" | "critical" {
   return "critical";
 }
 
-function StatTile({ label, score }: { label: string; score: number }) {
+function StatTile({ label, score, href, hint }: { label: string; score: number; href?: string; hint?: string }) {
   const severity = scoreSeverity(score);
-  return (
-    <article className="stat-tile">
+  const inner = (
+    <>
       <span className="stat-label">{label}</span>
       <div className="stat-value">
         {formatScore(score)}
@@ -427,8 +427,17 @@ function StatTile({ label, score }: { label: string; score: number }) {
       <div className={`meter meter-${severity}`} role="img" aria-label={`${label}: ${score} / 100`}>
         <i style={{ width: `${Math.min(100, Math.max(0, score))}%` }} />
       </div>
-    </article>
+      {hint && <span className="stat-hint">{hint} ›</span>}
+    </>
   );
+  if (href) {
+    return (
+      <a className="stat-tile stat-tile-link" href={href}>
+        {inner}
+      </a>
+    );
+  }
+  return <article className="stat-tile">{inner}</article>;
 }
 
 function RiskTile({
