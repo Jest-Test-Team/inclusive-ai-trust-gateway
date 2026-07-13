@@ -45,6 +45,8 @@ export interface ReassessStaleResponse {
   updated: number;
   items: AssessmentResponse[];
 }
+
+export interface SafetyEvent {
   id: string;
   eventType: string;
   severity: string;
