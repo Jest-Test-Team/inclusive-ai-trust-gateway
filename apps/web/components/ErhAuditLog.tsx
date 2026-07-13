@@ -7,7 +7,14 @@
 // client-side theatre over a real verdict — labelled as such.
 
 import { useRef, useState } from "react";
-import { evaluateWithErh, type ErhEvaluation, type Locale, type PublicServiceUseCase } from "@iatg/shared";
+import {
+  assessUseCase,
+  evaluateWithErh,
+  safetySignals,
+  type ErhEvaluation,
+  type Locale,
+  type PublicServiceUseCase,
+} from "@iatg/shared";
 
 const copy: Record<Locale, {
   eyebrow: string;
@@ -24,6 +31,8 @@ const copy: Record<Locale, {
   primes: (p: number, n: number) => string;
   persona: (label: string, barriers: string) => string;
   done: string;
+  engineDown: (msg: string) => string;
+  fallbackNote: string;
 }> = {
   en: {
     eyebrow: "ERH fairness engine",
@@ -40,6 +49,8 @@ const copy: Record<Locale, {
     primes: (p, n) => `${p} of ${n} samples flagged as structurally critical`,
     persona: (label, barriers) => `Analyzing persona "${label}" — barriers: ${barriers}`,
     done: "Audit complete.",
+    engineDown: (msg) => `ERH engine unreachable (${msg}) — falling back to the deterministic evaluator`,
+    fallbackNote: "Figures below are the deterministic fallback (same logic the gateway uses when the engine is down), not live engine output.",
   },
   "zh-TW": {
     eyebrow: "ERH 公平性引擎",
@@ -56,6 +67,8 @@ const copy: Record<Locale, {
     primes: (p, n) => `${n} 個樣本中有 ${p} 個被標記為結構性關鍵`,
     persona: (label, barriers) => `分析人物誌「${label}」— 障礙：${barriers}`,
     done: "審計完成。",
+    engineDown: (msg) => `ERH 引擎無法連線（${msg}）— 改用確定性備援評估器`,
+    fallbackNote: "以下數值為確定性備援（與引擎離線時閘道採用的邏輯相同），非引擎即時輸出。",
   },
 };
 
@@ -66,15 +79,38 @@ interface LogLine {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Deterministic fallback shaped like an ErhEvaluation, derived from the local
+ * assessment. Used only when the ERH engine is unreachable so the audit still
+ * completes with honest, clearly-labelled numbers.
+ */
+function localFallback(useCase: PublicServiceUseCase): ErhEvaluation {
+  const local = assessUseCase(useCase, safetySignals);
+  const numSamples = Math.max(1, useCase.personas.length);
+  const risk = local.fairnessRisk === "High" ? 78 : local.fairnessRisk === "Medium" ? 52 : 24;
+  const numPrimes =
+    local.fairnessRisk === "High" ? numSamples : local.fairnessRisk === "Medium" ? Math.ceil(numSamples / 2) : 0;
+  return {
+    erh_satisfied: local.fairnessRisk !== "High",
+    risk_score: risk,
+    estimated_exponent: 1 + (100 - local.inclusionScore) / 100,
+    violation_rate: numPrimes / numSamples,
+    num_samples: numSamples,
+    num_primes: numPrimes,
+  };
+}
+
 export function ErhAuditLog({ useCase, locale }: { useCase: PublicServiceUseCase; locale: Locale }) {
   const t = copy[locale];
   const [lines, setLines] = useState<LogLine[]>([]);
   const [busy, setBusy] = useState(false);
+  const [fellBack, setFellBack] = useState(false);
   const runId = useRef(0);
 
   async function run() {
     const myRun = ++runId.current;
     setBusy(true);
+    setFellBack(false);
     setLines([]);
     const push = (line: LogLine) => {
       if (runId.current === myRun) setLines((prev) => [...prev, line]);
@@ -97,18 +133,21 @@ export function ErhAuditLog({ useCase, locale }: { useCase: PublicServiceUseCase
     const result = await evalPromise;
     if (runId.current !== myRun) return;
 
+    // When the engine is unreachable, fall back to the deterministic evaluator
+    // (mirrors the gateway's erh.Fallback) so the audit still lands on numbers,
+    // clearly labelled as fallback rather than live engine output.
+    const evaluation = result instanceof Error ? localFallback(useCase) : (result as ErhEvaluation);
     if (result instanceof Error) {
-      push({ text: `ERH engine error: ${result.message}`, tone: "bad" });
-    } else {
-      const evaluation = result as ErhEvaluation;
-      push({ text: t.verdict(evaluation.risk_score, evaluation.estimated_exponent), tone: "warn" });
-      push({ text: t.primes(evaluation.num_primes, evaluation.num_samples), tone: "warn" });
-      push({
-        text: evaluation.erh_satisfied ? t.satisfied : t.violated,
-        tone: evaluation.erh_satisfied ? "ok" : "bad",
-      });
-      push({ text: t.done, tone: "info" });
+      push({ text: t.engineDown(result.message.slice(0, 80)), tone: "warn" });
     }
+    push({ text: t.verdict(evaluation.risk_score, evaluation.estimated_exponent), tone: "warn" });
+    push({ text: t.primes(evaluation.num_primes, evaluation.num_samples), tone: "warn" });
+    push({
+      text: evaluation.erh_satisfied ? t.satisfied : t.violated,
+      tone: evaluation.erh_satisfied ? "ok" : "bad",
+    });
+    push({ text: t.done, tone: "info" });
+    setFellBack(result instanceof Error);
     setBusy(false);
   }
 
@@ -134,7 +173,7 @@ export function ErhAuditLog({ useCase, locale }: { useCase: PublicServiceUseCase
           </div>
         ))}
       </div>
-      <p className="api-empty erh-caption">{t.caption}</p>
+      <p className="api-empty erh-caption">{fellBack ? t.fallbackNote : t.caption}</p>
     </section>
   );
 }

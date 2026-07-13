@@ -68,7 +68,9 @@ const copy: Record<Locale, {
   running: string;
   blocked: string;
   allowed: string;
+  passed: string;
   reasons: string;
+  errorLabel: string;
   persisted: string;
   offline: string;
   request: string;
@@ -82,7 +84,9 @@ const copy: Record<Locale, {
     running: "Attacking…",
     blocked: "BLOCKED by ADM",
     allowed: "Allowed — reached the model",
+    passed: "Passed the analyzer — model backend offline",
     reasons: "Defense triggers",
+    errorLabel: "Backend detail",
     persisted: "Logged to Postgres + streamed to SIEM",
     offline: "Offline demo mode — set NEXT_PUBLIC_API_BASE_URL to run live attacks.",
     request: "Payload sent",
@@ -96,20 +100,24 @@ const copy: Record<Locale, {
     running: "攻擊中…",
     blocked: "已被 ADM 攔截",
     allowed: "放行 — 已抵達模型",
+    passed: "通過分析器 — 但後端模型未連線",
     reasons: "觸發的防禦規則",
+    errorLabel: "後端訊息",
     persisted: "已寫入 Postgres 並串流至 SIEM",
     offline: "離線示範模式 — 設定 NEXT_PUBLIC_API_BASE_URL 才能執行實戰攻擊。",
     request: "送出的攻擊語句",
   },
 };
 
+type Verdict = "blocked" | "allowed" | "error";
+
 interface Outcome {
   attackId: string;
-  blocked: boolean;
+  verdict: Verdict;
   status: number;
   reasons: string[];
+  detail?: string;
   persisted: boolean;
-  error?: string;
 }
 
 export function AttackSimulator({ locale }: { locale: Locale }) {
@@ -128,12 +136,16 @@ export function AttackSimulator({ locale }: { locale: Locale }) {
         body: JSON.stringify({ messages: [{ role: "user", content: attack.payload }] }),
       });
       const body = (await res.json().catch(() => ({}))) as { reason?: string[]; error?: string };
-      const blocked = res.status === 403;
-      const reasons = Array.isArray(body.reason) ? body.reason : body.error ? [body.error] : [];
+      // Three honest states: 403 = ADM blocked the intent; 2xx = analyzer
+      // passed AND the model answered; anything else (e.g. 500 because Ollama
+      // is offline) = analyzer passed but the backend never reached a model.
+      const verdict: Verdict = res.status === 403 ? "blocked" : res.ok ? "allowed" : "error";
+      const reasons = verdict === "blocked" && Array.isArray(body.reason) ? body.reason : [];
+      const detail = verdict === "error" ? body.error ?? `HTTP ${res.status}` : undefined;
 
       // Persist + stream the block so the SIEM panel lights up live.
       let persisted = false;
-      if (blocked && liveMode) {
+      if (verdict === "blocked" && liveMode) {
         try {
           await gateway.ingestSafetyEvent({
             eventType: "prompt_injection",
@@ -146,15 +158,15 @@ export function AttackSimulator({ locale }: { locale: Locale }) {
           // gateway may be offline even when the ADM proxy is not
         }
       }
-      setOutcome({ attackId: attack.id, blocked, status: res.status, reasons, persisted });
+      setOutcome({ attackId: attack.id, verdict, status: res.status, reasons, detail, persisted });
     } catch (err) {
       setOutcome({
         attackId: attack.id,
-        blocked: false,
+        verdict: "error",
         status: 0,
         reasons: [],
+        detail: err instanceof Error ? err.message : String(err),
         persisted: false,
-        error: err instanceof Error ? err.message : String(err),
       });
     } finally {
       setBusyId("");
@@ -190,9 +202,19 @@ export function AttackSimulator({ locale }: { locale: Locale }) {
               <code className="attack-payload">{attack.payload}</code>
 
               {active && outcome && (
-                <div className={`attack-verdict ${outcome.blocked ? "attack-verdict-blocked" : outcome.error ? "attack-verdict-blocked" : "attack-verdict-allowed"}`}>
+                <div
+                  className={`attack-verdict ${
+                    outcome.verdict === "blocked"
+                      ? "attack-verdict-blocked"
+                      : outcome.verdict === "allowed"
+                        ? "attack-verdict-allowed"
+                        : "attack-verdict-error"
+                  }`}
+                >
                   <div className="attack-verdict-head">
-                    <span>{outcome.error ? outcome.error : outcome.blocked ? t.blocked : t.allowed}</span>
+                    <span>
+                      {outcome.verdict === "blocked" ? t.blocked : outcome.verdict === "allowed" ? t.allowed : t.passed}
+                    </span>
                     <small>HTTP {outcome.status || "—"}</small>
                   </div>
                   {outcome.reasons.length > 0 && (
@@ -202,6 +224,14 @@ export function AttackSimulator({ locale }: { locale: Locale }) {
                         {outcome.reasons.map((r, i) => (
                           <li key={i}>{r}</li>
                         ))}
+                      </ul>
+                    </div>
+                  )}
+                  {outcome.detail && (
+                    <div className="attack-reasons">
+                      <span>{t.errorLabel}</span>
+                      <ul>
+                        <li>{outcome.detail}</li>
                       </ul>
                     </div>
                   )}
