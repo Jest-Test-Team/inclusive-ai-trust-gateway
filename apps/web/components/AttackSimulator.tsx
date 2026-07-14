@@ -60,21 +60,25 @@ const ATTACKS: Attack[] = [
   },
 ];
 
-const copy: Record<Locale, {
-  eyebrow: string;
-  title: string;
-  intro: string;
-  launch: string;
-  running: string;
-  blocked: string;
-  allowed: string;
-  passed: string;
-  reasons: string;
-  errorLabel: string;
-  persisted: string;
-  offline: string;
-  request: string;
-}> = {
+const copy: Record<
+  Locale,
+  {
+    eyebrow: string;
+    title: string;
+    intro: string;
+    launch: string;
+    running: string;
+    blocked: string;
+    allowed: string;
+    passed: string;
+    offlineStack: string;
+    reasons: string;
+    errorLabel: string;
+    persisted: string;
+    offline: string;
+    request: string;
+  }
+> = {
   en: {
     eyebrow: "Red-team demo",
     title: "One-click attack → live defense",
@@ -85,6 +89,7 @@ const copy: Record<Locale, {
     blocked: "BLOCKED by ADM",
     allowed: "Allowed — reached the model",
     passed: "Passed the analyzer — model backend offline",
+    offlineStack: "ADM stack unreachable — analyzer never ran",
     reasons: "Defense triggers",
     errorLabel: "Backend detail",
     persisted: "Logged to Postgres + streamed to SIEM",
@@ -101,6 +106,7 @@ const copy: Record<Locale, {
     blocked: "已被 ADM 攔截",
     allowed: "放行 — 已抵達模型",
     passed: "通過分析器 — 但後端模型未連線",
+    offlineStack: "ADM 堆疊離線 — 分析器根本沒跑到",
     reasons: "觸發的防禦規則",
     errorLabel: "後端訊息",
     persisted: "已寫入 Postgres 並串流至 SIEM",
@@ -109,7 +115,7 @@ const copy: Record<Locale, {
   },
 };
 
-type Verdict = "blocked" | "allowed" | "error";
+type Verdict = "blocked" | "allowed" | "error" | "offline";
 
 interface Outcome {
   attackId: string;
@@ -117,7 +123,32 @@ interface Outcome {
   status: number;
   reasons: string[];
   detail?: string;
+  hint?: string;
   persisted: boolean;
+}
+
+function classifyAdmFailure(
+  status: number,
+  body: { error?: string; message?: string; hint?: string; code?: string },
+): { verdict: Verdict; detail: string; hint?: string } {
+  const blob = [body.error, body.message, body.code].filter(Boolean).join(" — ");
+  const detail = blob || `HTTP ${status}`;
+  // Choreo edge 503 "No healthy upstream" = adm-stack pod down; analyzer never ran.
+  if (
+    status === 503 ||
+    status === 502 ||
+    status === 504 ||
+    /no healthy upstream|upstream (not configured|unreachable|timeout)/i.test(detail)
+  ) {
+    return {
+      verdict: "offline",
+      detail,
+      hint:
+        body.hint ??
+        "Choreo adm-stack 無健康 Pod。到 Choreo → adm-stack → 確認 Deployed、Endpoint Port=8080、必要時 Redeploy / 關閉 Scale-to-Zero。",
+    };
+  }
+  return { verdict: "error", detail, hint: body.hint };
 }
 
 export function AttackSimulator({ locale }: { locale: Locale }) {
@@ -135,15 +166,31 @@ export function AttackSimulator({ locale }: { locale: Locale }) {
         headers: { "Content-Type": "application/json", "X-Session-ID": sessionId },
         body: JSON.stringify({ messages: [{ role: "user", content: attack.payload }] }),
       });
-      const body = (await res.json().catch(() => ({}))) as { reason?: string[]; error?: string };
-      // Three honest states: 403 = ADM blocked the intent; 2xx = analyzer
-      // passed AND the model answered; anything else (e.g. 500 because Ollama
-      // is offline) = analyzer passed but the backend never reached a model.
-      const verdict: Verdict = res.status === 403 ? "blocked" : res.ok ? "allowed" : "error";
-      const reasons = verdict === "blocked" && Array.isArray(body.reason) ? body.reason : [];
-      const detail = verdict === "error" ? body.error ?? `HTTP ${res.status}` : undefined;
+      const body = (await res.json().catch(() => ({}))) as {
+        reason?: string[];
+        error?: string;
+        message?: string;
+        hint?: string;
+        code?: string;
+      };
 
-      // Persist + stream the block so the SIEM panel lights up live.
+      let verdict: Verdict;
+      let detail: string | undefined;
+      let hint: string | undefined;
+      let reasons: string[] = [];
+
+      if (res.status === 403) {
+        verdict = "blocked";
+        reasons = Array.isArray(body.reason) ? body.reason : [];
+      } else if (res.ok) {
+        verdict = "allowed";
+      } else {
+        const fail = classifyAdmFailure(res.status, body);
+        verdict = fail.verdict;
+        detail = fail.detail;
+        hint = fail.hint;
+      }
+
       let persisted = false;
       if (verdict === "blocked" && liveMode) {
         try {
@@ -158,19 +205,30 @@ export function AttackSimulator({ locale }: { locale: Locale }) {
           // gateway may be offline even when the ADM proxy is not
         }
       }
-      setOutcome({ attackId: attack.id, verdict, status: res.status, reasons, detail, persisted });
+      setOutcome({ attackId: attack.id, verdict, status: res.status, reasons, detail, hint, persisted });
     } catch (err) {
       setOutcome({
         attackId: attack.id,
-        verdict: "error",
+        verdict: "offline",
         status: 0,
         reasons: [],
         detail: err instanceof Error ? err.message : String(err),
+        hint:
+          locale === "zh-TW"
+            ? "無法連到 /api/adm。確認本機或 Vercel 已設定 ADM_API_BASE_URL。"
+            : "Could not reach /api/adm. Confirm ADM_API_BASE_URL is set.",
         persisted: false,
       });
     } finally {
       setBusyId("");
     }
+  }
+
+  function verdictLabel(v: Verdict): string {
+    if (v === "blocked") return t.blocked;
+    if (v === "allowed") return t.allowed;
+    if (v === "offline") return t.offlineStack;
+    return t.passed;
   }
 
   return (
@@ -212,9 +270,7 @@ export function AttackSimulator({ locale }: { locale: Locale }) {
                   }`}
                 >
                   <div className="attack-verdict-head">
-                    <span>
-                      {outcome.verdict === "blocked" ? t.blocked : outcome.verdict === "allowed" ? t.allowed : t.passed}
-                    </span>
+                    <span>{verdictLabel(outcome.verdict)}</span>
                     <small>HTTP {outcome.status || "—"}</small>
                   </div>
                   {outcome.reasons.length > 0 && (
@@ -232,6 +288,7 @@ export function AttackSimulator({ locale }: { locale: Locale }) {
                       <span>{t.errorLabel}</span>
                       <ul>
                         <li>{outcome.detail}</li>
+                        {outcome.hint && <li>{outcome.hint}</li>}
                       </ul>
                     </div>
                   )}
