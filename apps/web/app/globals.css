@@ -390,6 +390,66 @@ li + li {
   font-weight: 600;
 }
 
+.stat-explain,
+.stat-howto {
+  margin: 8px 0 0;
+  color: var(--ink-2);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  font-weight: 400;
+}
+
+.stat-howto {
+  color: var(--brand-700);
+}
+
+.erh-verdict {
+  margin-top: 14px;
+}
+
+.erh-verdict-head {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.erh-verdict-head span {
+  color: var(--ink-3);
+  font-size: 0.78rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.erh-verdict-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.erh-verdict-grid .stat-value {
+  margin: 4px 0 6px;
+  font-size: 1.35rem;
+}
+
+.erh-verdict-grid .stat-value small {
+  margin-left: 6px;
+  font-size: 0.72rem;
+}
+
+.erh-verdict-grid p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 680px) {
+  .erh-verdict-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .meter {
   margin-top: 12px;
   height: 6px;

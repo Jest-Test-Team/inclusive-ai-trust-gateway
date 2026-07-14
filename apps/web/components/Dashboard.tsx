@@ -77,6 +77,16 @@ const copy = {
     metricOpenData: "Open data readiness",
     metricAgentSafety: "Agent safety readiness",
     riskLabels: { Low: "Low", Medium: "Medium", High: "High" } as Record<string, string>,
+    openDataExplain:
+      "How many curated open-data source categories this scenario cites. Score = min(100, sources × 22). Care has 3 → 66/100.",
+    openDataHowTo100: "Reach 100 by linking ≥5 open-data source categories on the use case (5 × 22 ≥ 100).",
+    agentSafetyExplain:
+      "ADM control inventory readiness: each ready control +28, each partial +14. Today: 2 ready + 2 partial = 84.",
+    agentSafetyHowTo100: "Reach 100 when all four ADM controls are ready (4 × 28), or 3 ready + 2 partial.",
+    erhRiskExplain:
+      "Fairness risk 0–100 from the ERH engine (higher = worse). ≤33 Low, ≤66 Medium, >66 High.",
+    erhAlphaExplain:
+      "α is the ethical error-growth exponent (|E| ~ x^α). Healthy systems stay near ≈0.50; higher α means error grows faster as decisions get harder.",
     erhRoleDetail:
       "Converts service outcomes into comparable samples, scores fairness and ethical-error growth, and surfaces where AI decisions may structurally exclude vulnerable groups.",
     admWaiting: "Connected to the gateway - waiting for live ADM events.",
@@ -141,6 +151,16 @@ const copy = {
     metricOpenData: "開放資料準備度",
     metricAgentSafety: "代理安全準備度",
     riskLabels: { Low: "低", Medium: "中", High: "高" } as Record<string, string>,
+    openDataExplain:
+      "此情境引用了幾個開放資料來源類別。分數 = min(100, 來源數 × 22)。照護情境 3 個來源 → 66/100。",
+    openDataHowTo100: "要到 100：在 use case 掛上至少 5 個開放資料來源類別（5 × 22 ≥ 100）。",
+    agentSafetyExplain:
+      "ADM 控制項就緒度：每個 ready +28、每個 partial +14。目前 2 ready + 2 partial = 84。",
+    agentSafetyHowTo100: "要到 100：四項 ADM 控制皆為 ready（4 × 28），或 3 ready + 2 partial。",
+    erhRiskExplain:
+      "ERH 引擎回傳的公平風險 0–100（越高越危險）。≤33 低、≤66 中、>66 高。",
+    erhAlphaExplain:
+      "α 是倫理誤差成長指數（|E| ~ x^α）。健康系統約 ≈0.50；α 越高代表決策越難時誤差成長越快。",
     erhRoleDetail:
       "將服務結果轉為可比較的樣本，評估公平性與倫理誤差成長，並指出 AI 決策可能在結構上排除弱勢族群之處。",
     admWaiting: "已連線至閘道，等待即時 ADM 事件。",
@@ -199,8 +219,20 @@ export function Dashboard() {
       <div className="kpi-strip">
         <StatTile label={t.metricInclusion} score={assessment.inclusionScore} />
         <RiskTile label={t.metricFairness} risk={assessment.fairnessRisk} riskLabels={t.riskLabels} />
-        <StatTile label={t.metricOpenData} score={assessment.openDataReadiness} href="#open-data" hint={t.openDataHint} />
-        <StatTile label={t.metricAgentSafety} score={assessment.agentSafetyReadiness} />
+        <StatTile
+          label={t.metricOpenData}
+          score={assessment.openDataReadiness}
+          href="#open-data"
+          hint={t.openDataHint}
+          explain={t.openDataExplain}
+          howTo100={t.openDataHowTo100}
+        />
+        <StatTile
+          label={t.metricAgentSafety}
+          score={assessment.agentSafetyReadiness}
+          explain={t.agentSafetyExplain}
+          howTo100={t.agentSafetyHowTo100}
+        />
       </div>
 
       <section className="section" id="scenarios">
@@ -375,7 +407,21 @@ function scoreSeverity(score: number): "good" | "warning" | "critical" {
   return "critical";
 }
 
-function StatTile({ label, score, href, hint }: { label: string; score: number; href?: string; hint?: string }) {
+function StatTile({
+  label,
+  score,
+  href,
+  hint,
+  explain,
+  howTo100,
+}: {
+  label: string;
+  score: number;
+  href?: string;
+  hint?: string;
+  explain?: string;
+  howTo100?: string;
+}) {
   const severity = scoreSeverity(score);
   const inner = (
     <>
@@ -387,6 +433,8 @@ function StatTile({ label, score, href, hint }: { label: string; score: number; 
       <div className={`meter meter-${severity}`} role="img" aria-label={`${label}: ${score} / 100`}>
         <i style={{ width: `${Math.min(100, Math.max(0, score))}%` }} />
       </div>
+      {explain && <p className="stat-explain">{explain}</p>}
+      {howTo100 && score < 100 && <p className="stat-howto">{howTo100}</p>}
       {hint && <span className="stat-hint">{hint} ›</span>}
     </>
   );
@@ -576,7 +624,17 @@ function EnginesPanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Copy }
   const [results, setResults] = useState<EngineProbeResult[]>([]);
   const [evaluation, setEvaluation] = useState<ErhEvaluation | null>(null);
   const [busy, setBusy] = useState(false);
+  const [probing, setProbing] = useState(false);
   const [error, setError] = useState("");
+
+  async function refreshProbes() {
+    setProbing(true);
+    try {
+      setResults(await probeEngines({ admBaseURL: "/api/adm", erhBaseURL: "/api/erh" }, useCase));
+    } finally {
+      setProbing(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -601,6 +659,8 @@ function EnginesPanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Copy }
     }
   }
 
+  const anyDown = results.some((r) => !r.ok);
+
   return (
     <section className="api-band card">
       <div className="api-header">
@@ -610,9 +670,20 @@ function EnginesPanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Copy }
         </div>
       </div>
       <p className="api-empty">{t.enginesIntro}</p>
+      {anyDown && (
+        <p className="api-empty">
+          Upstream 503/504 usually means the Choreo component is cold, stopped, or on the wrong port
+          (ERH must use endpoint port <code>8080</code>). Confirm Vercel env{" "}
+          <code>ADM_API_BASE_URL</code> / <code>ERH_API_BASE_URL</code> match the Choreo public URLs,
+          then Redeploy.
+        </p>
+      )}
       <div className="api-actions">
         <button onClick={runErh} disabled={busy}>
           {t.runErh}
+        </button>
+        <button onClick={() => void refreshProbes()} disabled={probing}>
+          {probing ? "…" : t.runCheck}
         </button>
         {error && <span>{error}</span>}
       </div>
@@ -634,6 +705,8 @@ function EnginesPanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Copy }
               {evaluation.erh_satisfied ? t.erhHealthy : t.erhUnhealthy} ({evaluation.num_primes} critical of{" "}
               {evaluation.num_samples} samples)
             </p>
+            <p className="stat-explain">{t.erhRiskExplain}</p>
+            <p className="stat-explain">{t.erhAlphaExplain}</p>
           </article>
         )}
       </div>

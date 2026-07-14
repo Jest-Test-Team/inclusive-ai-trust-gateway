@@ -74,6 +74,20 @@ const copy: Record<Locale, {
 
 type Copy = (typeof copy)["en"];
 
+/** True when any live column matches an equity token (CJK substring or whole English word). */
+function schemaCoversEquity(fields: string[], tokens: string[]): boolean {
+  const normalized = fields.map((f) => f.toLowerCase());
+  return tokens.some((tok) => {
+    const t = tok.toLowerCase();
+    const isCjk = /[\u3000-\u9fff]/.test(tok);
+    if (isCjk) return normalized.some((f) => f.includes(t));
+    return normalized.some((f) => {
+      const parts = f.split(/[^a-z0-9]+/).filter(Boolean);
+      return parts.includes(t) || parts.some((p) => p === t || (t.length >= 4 && p.startsWith(t)));
+    });
+  });
+}
+
 export function OpenDataPanel({ locale, scenarioId }: { locale: Locale; scenarioId: string }) {
   const t = copy[locale];
   const sources = getOpenDataSources();
@@ -121,10 +135,10 @@ function SourceCard({
         const res = await fetch(`/api/opendata/${src.datasetId}`);
         if (!res.ok) throw new Error(String(res.status));
         const data = (await res.json()) as LiveDataset;
-        // Accessibility gap: does any real column match an accessibility token?
-        const haystack = data.schemaFields.join(" ").toLowerCase();
-        const covered = src.accessibilityTokens.some((tok) => haystack.includes(tok.toLowerCase()));
-        if (!cancelled) setLive({ status: "ok", data, gap: !covered });
+        // Token match against whole field names / CJK substrings — not raw
+        // English substrings like "lang" inside unrelated words.
+        const gap = !schemaCoversEquity(data.schemaFields, src.accessibilityTokens);
+        if (!cancelled) setLive({ status: "ok", data, gap });
       } catch {
         if (!cancelled) setLive({ status: "error" });
       }

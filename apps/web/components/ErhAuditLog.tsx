@@ -4,7 +4,8 @@
 // evaluateWithErh() call against the ERH engine; while it runs we narrate the
 // evaluation steps derived from the actual scenario (one line per persona and
 // its barriers), then print the engine's real numbers. The narration is
-// client-side theatre over a real verdict — labelled as such.
+// client-side theatre over a real verdict — labelled as such. Switching the
+// scenario tabs changes which personas appear in the next audit run.
 
 import { useRef, useState } from "react";
 import {
@@ -16,30 +17,43 @@ import {
   type PublicServiceUseCase,
 } from "@iatg/shared";
 
-const copy: Record<Locale, {
-  eyebrow: string;
-  title: string;
-  run: string;
-  running: string;
-  caption: string;
-  satisfied: string;
-  violated: string;
-  boot: string;
-  correlate: (n: number) => string;
-  exponent: string;
-  verdict: (risk: number, alpha: number) => string;
-  primes: (p: number, n: number) => string;
-  persona: (label: string, barriers: string) => string;
-  done: string;
-  engineDown: (msg: string) => string;
-  fallbackNote: string;
-}> = {
+const copy: Record<
+  Locale,
+  {
+    eyebrow: string;
+    title: string;
+    run: string;
+    running: string;
+    caption: string;
+    satisfied: string;
+    violated: string;
+    boot: string;
+    correlate: (n: number) => string;
+    exponent: string;
+    verdict: (risk: number, alpha: number) => string;
+    primes: (p: number, n: number) => string;
+    persona: (label: string, barriers: string) => string;
+    done: string;
+    engineDown: (msg: string) => string;
+    fallbackNote: string;
+    scenesHint: string;
+    resultTitle: string;
+    riskLabel: string;
+    alphaLabel: string;
+    samplesLabel: string;
+    riskExplain: string;
+    alphaExplain: string;
+    bandLow: string;
+    bandMed: string;
+    bandHigh: string;
+  }
+> = {
   en: {
     eyebrow: "ERH fairness engine",
     title: "Equity audit — streaming log",
     run: "Run fairness audit",
     running: "Auditing…",
-    caption: "Steps narrated client-side; the verdict below is returned by the ERH engine.",
+    caption: "Log steps are narrated in the browser; the verdict card below is the live ERH engine response.",
     satisfied: "ERH SATISFIED — error growth within the fairness bound",
     violated: "ERH VIOLATED — structural error growth detected",
     boot: "Booting Ethic-Latex evaluator…",
@@ -50,14 +64,27 @@ const copy: Record<Locale, {
     persona: (label, barriers) => `Analyzing persona "${label}" — barriers: ${barriers}`,
     done: "Audit complete.",
     engineDown: (msg) => `ERH engine unreachable (${msg}) — falling back to the deterministic evaluator`,
-    fallbackNote: "Figures below are the deterministic fallback (same logic the gateway uses when the engine is down), not live engine output.",
+    fallbackNote:
+      "Figures below are the deterministic fallback (same logic the gateway uses when the engine is down), not live engine output.",
+    scenesHint: "Want more scenes? Switch Care / Disaster / Education in Service Scenarios, then run again.",
+    resultTitle: "Engine verdict",
+    riskLabel: "Fairness risk",
+    alphaLabel: "Error-growth α",
+    samplesLabel: "Critical samples",
+    riskExplain:
+      "0–100, higher = riskier. ≤33 Low, ≤66 Medium, >66 High. Built from how often persona judgments violate the ERH fairness bound.",
+    alphaExplain:
+      "Exponent in |E(x)| ~ x^α. Healthy systems stay near α ≈ 0.5 (Riemann-like bound). Values much above 0.5 mean ethical error grows too fast with decision complexity.",
+    bandLow: "Low risk band",
+    bandMed: "Medium risk band",
+    bandHigh: "High risk band",
   },
   "zh-TW": {
     eyebrow: "ERH 公平性引擎",
     title: "平權審計 — 即時日誌流",
     run: "執行平權審計",
     running: "審計中…",
-    caption: "各步驟為前端敘述；下方判定結果由 ERH 引擎實際回傳。",
+    caption: "日誌步驟由前端敘述；下方「引擎判定」卡片為 ERH 引擎即時回傳結果。",
     satisfied: "ERH 通過 — 誤差成長在公平界線內",
     violated: "ERH 未通過 — 偵測到結構性誤差成長",
     boot: "啟動 Ethic-Latex 評估器…",
@@ -69,6 +96,18 @@ const copy: Record<Locale, {
     done: "審計完成。",
     engineDown: (msg) => `ERH 引擎無法連線（${msg}）— 改用確定性備援評估器`,
     fallbackNote: "以下數值為確定性備援（與引擎離線時閘道採用的邏輯相同），非引擎即時輸出。",
+    scenesHint: "要換情境？先在「服務情境」切換照護／災防／教育，再按一次執行平權審計。",
+    resultTitle: "引擎判定",
+    riskLabel: "公平風險",
+    alphaLabel: "誤差成長 α",
+    samplesLabel: "結構性關鍵樣本",
+    riskExplain:
+      "0–100，越高越危險。≤33 低、≤66 中、>66 高。依人物誌樣本違反 ERH 公平界線的程度計算。",
+    alphaExplain:
+      "誤差成長指數，模型為 |E(x)| ~ x^α。健康系統約 α ≈ 0.5；明顯高於 0.5 代表決策越複雜，倫理誤差成長越快。",
+    bandLow: "低風險區間",
+    bandMed: "中風險區間",
+    bandHigh: "高風險區間",
   },
 };
 
@@ -79,11 +118,6 @@ interface LogLine {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/**
- * Deterministic fallback shaped like an ErhEvaluation, derived from the local
- * assessment. Used only when the ERH engine is unreachable so the audit still
- * completes with honest, clearly-labelled numbers.
- */
 function localFallback(useCase: PublicServiceUseCase): ErhEvaluation {
   const local = assessUseCase(useCase, safetySignals);
   const numSamples = Math.max(1, useCase.personas.length);
@@ -100,23 +134,30 @@ function localFallback(useCase: PublicServiceUseCase): ErhEvaluation {
   };
 }
 
+function riskBand(risk: number): "good" | "warning" | "critical" {
+  if (risk <= 33) return "good";
+  if (risk <= 66) return "warning";
+  return "critical";
+}
+
 export function ErhAuditLog({ useCase, locale }: { useCase: PublicServiceUseCase; locale: Locale }) {
   const t = copy[locale];
   const [lines, setLines] = useState<LogLine[]>([]);
   const [busy, setBusy] = useState(false);
   const [fellBack, setFellBack] = useState(false);
+  const [evaluation, setEvaluation] = useState<ErhEvaluation | null>(null);
   const runId = useRef(0);
 
   async function run() {
     const myRun = ++runId.current;
     setBusy(true);
     setFellBack(false);
+    setEvaluation(null);
     setLines([]);
     const push = (line: LogLine) => {
       if (runId.current === myRun) setLines((prev) => [...prev, line]);
     };
 
-    // Kick off the real evaluation immediately; narrate while it resolves.
     const evalPromise = evaluateWithErh("/api/erh", useCase).catch((err: unknown) => err as Error);
 
     push({ text: t.boot, tone: "info" });
@@ -133,23 +174,25 @@ export function ErhAuditLog({ useCase, locale }: { useCase: PublicServiceUseCase
     const result = await evalPromise;
     if (runId.current !== myRun) return;
 
-    // When the engine is unreachable, fall back to the deterministic evaluator
-    // (mirrors the gateway's erh.Fallback) so the audit still lands on numbers,
-    // clearly labelled as fallback rather than live engine output.
-    const evaluation = result instanceof Error ? localFallback(useCase) : (result as ErhEvaluation);
+    const next = result instanceof Error ? localFallback(useCase) : (result as ErhEvaluation);
     if (result instanceof Error) {
       push({ text: t.engineDown(result.message.slice(0, 80)), tone: "warn" });
     }
-    push({ text: t.verdict(evaluation.risk_score, evaluation.estimated_exponent), tone: "warn" });
-    push({ text: t.primes(evaluation.num_primes, evaluation.num_samples), tone: "warn" });
+    push({ text: t.verdict(next.risk_score, next.estimated_exponent), tone: "warn" });
+    push({ text: t.primes(next.num_primes, next.num_samples), tone: "warn" });
     push({
-      text: evaluation.erh_satisfied ? t.satisfied : t.violated,
-      tone: evaluation.erh_satisfied ? "ok" : "bad",
+      text: next.erh_satisfied ? t.satisfied : t.violated,
+      tone: next.erh_satisfied ? "ok" : "bad",
     });
     push({ text: t.done, tone: "info" });
+    setEvaluation(next);
     setFellBack(result instanceof Error);
     setBusy(false);
   }
+
+  const band = evaluation ? riskBand(evaluation.risk_score) : null;
+  const bandLabel =
+    band === "good" ? t.bandLow : band === "warning" ? t.bandMed : band === "critical" ? t.bandHigh : "";
 
   return (
     <section className="api-band card">
@@ -159,6 +202,7 @@ export function ErhAuditLog({ useCase, locale }: { useCase: PublicServiceUseCase
           <h2>{t.title}</h2>
         </div>
       </div>
+      <p className="api-empty">{t.scenesHint}</p>
       <div className="api-actions">
         <button onClick={run} disabled={busy}>
           {busy ? t.running : t.run}
@@ -173,6 +217,37 @@ export function ErhAuditLog({ useCase, locale }: { useCase: PublicServiceUseCase
           </div>
         ))}
       </div>
+
+      {evaluation && (
+        <div className={`erh-verdict api-card ${evaluation.erh_satisfied ? "api-ok" : "api-fail"}`} aria-live="polite">
+          <div className="erh-verdict-head">
+            <span>{t.resultTitle}</span>
+            <strong>{evaluation.erh_satisfied ? t.satisfied : t.violated}</strong>
+          </div>
+          <div className="erh-verdict-grid">
+            <div>
+              <span className="stat-label">{t.riskLabel}</span>
+              <div className="stat-value">
+                {Math.round(evaluation.risk_score)}/100
+                <small>{bandLabel}</small>
+              </div>
+              <p>{t.riskExplain}</p>
+            </div>
+            <div>
+              <span className="stat-label">{t.alphaLabel}</span>
+              <div className="stat-value">α {evaluation.estimated_exponent.toFixed(2)}</div>
+              <p>{t.alphaExplain}</p>
+            </div>
+            <div>
+              <span className="stat-label">{t.samplesLabel}</span>
+              <div className="stat-value">
+                {evaluation.num_primes}/{evaluation.num_samples}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <p className="api-empty erh-caption">{fellBack ? t.fallbackNote : t.caption}</p>
     </section>
   );

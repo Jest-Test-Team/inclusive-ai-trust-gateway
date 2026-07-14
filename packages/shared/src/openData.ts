@@ -85,14 +85,15 @@ export const openDataSources: OpenDataSource[] = [
       "zh-TW": "讓助理能回答某車站是否無障礙、有無障礙廁所與輪椅保留空間。",
     },
     biasNote: {
-      en: "The schema is rich on physical accessibility (elevators, wheelchair spaces) but has no language field, and covers Taipei metro only — an AI treating it as nationwide tells a rural or non-Mandarin user 'no accessible option' that simply isn't recorded.",
-      "zh-TW": "欄位對實體無障礙（電梯、輪椅空間）著墨甚多，卻無語言欄位，且僅涵蓋臺北捷運 — AI 若當成全國資料，會對偏鄉或非華語使用者回答「沒有無障礙選項」，實則只是未登錄。",
+      en: "The schema is rich on physical accessibility (elevators, wheelchair spaces) but has no language / multilingual field, and covers Taipei metro only — an AI treating it as nationwide tells a rural or non-Mandarin user 'no accessible option' that simply isn't recorded.",
+      "zh-TW": "欄位對實體無障礙（電梯、輪椅空間）著墨甚多，卻無語言／多語欄位，且僅涵蓋臺北捷運 — AI 若當成全國資料，會對偏鄉或非華語使用者回答「沒有無障礙選項」，實則只是未登錄。",
     },
     recommendedFields: {
       en: ["languages_supported[] (signage/announcements)", "coverage_region", "survey_date", "step_free_verified_by"],
       "zh-TW": ["languages_supported[]（標示／廣播語言）", "涵蓋區域", "調查日期", "無障礙查核單位"],
     },
-    accessibilityTokens: ["language", "lang", "語言", "multilingual", "多語", "英語", "english"],
+    // Avoid short substring "lang" (false-positives inside unrelated English words).
+    accessibilityTokens: ["language", "languages", "語言", "多語", "multilingual", "英語", "english", "bilingual"],
     gapLabel: { en: "language / multilingual", "zh-TW": "語言／多語" },
     provision: {
       en: "We contribute a coverage-region tag and a language-of-service field so downstream models know where 'no data' ≠ 'no access'.",
@@ -115,15 +116,15 @@ export const openDataSources: OpenDataSource[] = [
       "zh-TW": "為災害協助助理提供避難處所位置、收容人數與適用災害類別。",
     },
     biasNote: {
-      en: "The schema records capacity and coordinates but no accessibility flag, so an AI routing a wheelchair user or family with an elderly member cannot tell which shelters are actually reachable — the highest-need evacuees are sent blind.",
-      "zh-TW": "欄位有收容人數與座標，卻無無障礙標記，AI 無法為輪椅使用者或有長者的家庭判斷哪些避難所實際可達 — 最需要協助的災民被盲目引導。",
+      en: "Capacity and coordinates are present, and there is a coarse 'suitable for vulnerable evacuees' flag, but no wheelchair / step-free column — an AI still cannot tell which shelters a wheelchair user can actually enter.",
+      "zh-TW": "雖有收容人數、座標與「適合避難弱者安置」，但仍無輪椅／無障礙明確欄位，AI 無法判斷輪椅使用者能否實際進入該避難所。",
     },
     recommendedFields: {
       en: ["wheelchair_accessible (bool)", "languages_supported[]", "medical_support_onsite (bool)", "valid_from/until"],
       "zh-TW": ["wheelchair_accessible（布林值）", "languages_supported[]", "現場醫療支援（布林值）", "生效／截止時間"],
     },
-    accessibilityTokens: ["accessible", "無障礙", "wheelchair", "輪椅", "ramp", "坡道", "friendly", "友善"],
-    gapLabel: { en: "accessibility", "zh-TW": "無障礙" },
+    accessibilityTokens: ["wheelchair", "輪椅", "無障礙", "accessible", "ramp", "坡道", "step-free", "step_free"],
+    gapLabel: { en: "wheelchair / step-free access", "zh-TW": "輪椅／無障礙" },
     provision: {
       en: "We publish an accessibility-tagged shelter overlay and a multilingual shelter-name variant for high-severity events.",
       "zh-TW": "我們回饋標註無障礙的避難所疊圖，並為高嚴重度事件提供多語避難所名稱版本。",

@@ -11,9 +11,13 @@ export interface ProxyOptions {
   defaultOrigin?: string;
   /** Header name/env pair injected server-side (e.g. gateway API key). */
   injectKey?: { header: string; env: string[]; fallback: string };
+  /** Upstream fetch timeout (ms). Default 12s to fail before platform 504. */
+  timeoutMs?: number;
 }
 
 export function createProxyHandler(options: ProxyOptions) {
+  const timeoutMs = options.timeoutMs ?? 12_000;
+
   return async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method === "OPTIONS") {
       res.status(204).end();
@@ -24,6 +28,25 @@ export function createProxyHandler(options: ProxyOptions) {
     if (!origin) {
       res.status(503).json({
         error: `upstream not configured: set ${options.originEnv.join(" or ")} in the Vercel project env`,
+        hint: "Redeploy after changing env vars. See services/instruction.md.",
+      });
+      return;
+    }
+
+    // Refuse known-dead Back4App temporary hosts so the UI gets a clear 503
+    // instead of hanging until Vercel/Choreo returns a cryptic 504.
+    try {
+      if (/\.b4a\.run$/i.test(new URL(origin).hostname)) {
+        res.status(503).json({
+          error: `upstream host is a expired Back4App URL: ${origin}`,
+          hint: "Replace with the Choreo public URL (GATEWAY_API_BASE_URL / ADM_API_BASE_URL / ERH_API_BASE_URL) and redeploy.",
+        });
+        return;
+      }
+    } catch {
+      res.status(503).json({
+        error: `upstream origin is not a valid URL: ${origin}`,
+        hint: `Set ${options.originEnv.join(" or ")} to an https://… Choreo public URL.`,
       });
       return;
     }
@@ -68,15 +91,23 @@ export function createProxyHandler(options: ProxyOptions) {
           body,
           cache: "no-store",
           redirect: "manual",
+          signal: AbortSignal.timeout(timeoutMs),
         });
         const location = response.headers.get("location");
         if (i >= 3 || !location || ![301, 302, 307, 308].includes(response.status)) break;
         hop = new URL(location, hop);
       }
     } catch (error) {
-      res.status(502).json({
-        error: `upstream unreachable: ${hop.origin}`,
-        detail: error instanceof Error ? error.message : String(error),
+      const detail = error instanceof Error ? error.message : String(error);
+      const timedOut = /aborted|timeout|TimeoutError/i.test(detail);
+      res.status(timedOut ? 504 : 502).json({
+        error: timedOut
+          ? `upstream timeout after ${timeoutMs}ms: ${hop.origin}`
+          : `upstream unreachable: ${hop.origin}`,
+        detail,
+        hint: timedOut
+          ? "Choreo component may be cold-starting, scaled to zero, or pointing at the wrong port (ERH must listen on 8080)."
+          : "Check the Choreo component is Deployed and the Vercel env URL matches its public endpoint.",
       });
       return;
     }
@@ -86,6 +117,26 @@ export function createProxyHandler(options: ProxyOptions) {
       if (key === "content-encoding" || key === "content-length" || key === "transfer-encoding") return;
       res.setHeader(key, value);
     });
+    // Surface a readable body when Choreo's edge returns opaque 503/504 JSON.
+    if (response.status >= 500) {
+      const text = await response.text();
+      try {
+        const parsed = JSON.parse(text) as { message?: string; description?: string; code?: string };
+        res.json({
+          error: `upstream ${response.status}`,
+          upstream: hop.origin,
+          message: parsed.message ?? parsed.description ?? text.slice(0, 200),
+          code: parsed.code,
+          hint:
+            response.status === 503 || response.status === 504
+              ? "Upstream pod failed to accept connections. In Choreo: confirm erh-engine/adm-stack is Running, endpoint port=8080, then Redeploy."
+              : undefined,
+        });
+      } catch {
+        res.send(text);
+      }
+      return;
+    }
     res.send(Buffer.from(await response.arrayBuffer()));
   };
 }

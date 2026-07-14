@@ -65,12 +65,17 @@ injection, redirect-safe forwarding, 503-on-unset / 502-on-unreachable).
 | `ADM_EMBED_REDIS` | leave unset (defaults on — Redis runs **inside** this container) | `services/adm-stack/entrypoint.sh` |
 | `ADM_REDIS_URL` | leave unset (defaults `redis://127.0.0.1:6379/0`) | `services/adm-stack/source/cmd/siem_engine/redis.go` |
 
-## 4. Choreo component `erh-engine` (build context `services/erh-engine`, Port **8000**)
+## 4. Choreo component `erh-engine` (build context `services/erh-engine`, Port **8080**)
 
 | Env var | Set to | Read by |
 |---|---|---|
 | `ERH_MODE` | `rest` | `services/erh-engine/erh_engine/serve.py` |
-| `PORT` | `8000` (Choreo may inject this automatically) | same |
+| `PORT` | `8080` (must match `.choreo/component.yaml` endpoint port) | same |
+
+> **Port trap:** older docs / Ethic-Latex sibling images used `8000`. The
+> vendored Choreo Dockerfile listens on **8080**. If the component endpoint
+> port and `PORT` disagree, Vercel proxies see `503 upstream connect error`
+> or `504 Upstream connection timeout`.
 
 ## 5. Mobile & offline demo (only if you use them)
 
