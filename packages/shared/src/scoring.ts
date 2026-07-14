@@ -1,3 +1,7 @@
+import {
+  scoreOpenDataReadiness,
+  type OpenDataRowMeasurement,
+} from "./openDataMetrics";
 import type { AgentSafetySignal, PublicServiceUseCase, TrustAssessment } from "./types";
 
 const clampScore = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
@@ -24,12 +28,16 @@ function riskLabelFor(score: number): "Low" | "Medium" | "High" {
 export function assessUseCase(
   useCase: PublicServiceUseCase,
   safetySignals: AgentSafetySignal[],
+  openDataMeasurements?: OpenDataRowMeasurement[],
 ): TrustAssessment {
   const personaCoverage = useCase.personas.length * 12;
   const totalBarriers = useCase.personas.reduce((total, persona) => total + persona.barriers.length, 0);
   const barrierCoverage = totalBarriers * 4;
   const safeguardCoverage = useCase.safeguards.length * 8;
-  const openDataReadiness = clampScore(useCase.openDataSources.length * 22);
+  const openDataReadiness = scoreOpenDataReadiness(
+    useCase.openDataSources.length,
+    openDataMeasurements,
+  );
 
   const readySafety = safetySignals.filter((signal) => signal.status === "ready").length;
   const partialSafety = safetySignals.filter((signal) => signal.status === "partial").length;
@@ -44,6 +52,9 @@ export function assessUseCase(
     riskScore(inclusionScore, unresolvedGaps, totalBarriers, openDataReadiness),
   );
 
+  const measuredOk = (openDataMeasurements ?? []).filter((m) => !m.error && m.rowsSampled > 0).length;
+  const rows = (openDataMeasurements ?? []).reduce((n, m) => n + (m.rowsSampled || 0), 0);
+
   return {
     inclusionScore,
     fairnessRisk,
@@ -51,7 +62,9 @@ export function assessUseCase(
     agentSafetyReadiness,
     strengths: [
       `${useCase.personas.length} inclusion personas modeled`,
-      `${useCase.openDataSources.length} open-data source categories identified`,
+      measuredOk > 0
+        ? `${measuredOk} open-data CSV datasets measured (${rows} rows sampled)`
+        : `${useCase.openDataSources.length} open-data source categories identified`,
       `${readySafety} ADM controls ready for integration`,
     ],
     gaps: [

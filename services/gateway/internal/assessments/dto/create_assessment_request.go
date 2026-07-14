@@ -29,7 +29,8 @@ type UseCasePayload struct {
 
 // CreateAssessmentRequest is the POST /v1/assessments form payload.
 type CreateAssessmentRequest struct {
-	UseCase UseCasePayload `json:"useCase" validate:"required"`
+	UseCase              UseCasePayload            `json:"useCase" validate:"required"`
+	OpenDataMeasurements []erh.OpenDataMeasurement `json:"openDataMeasurements,omitempty"`
 }
 
 // ToDomain maps the wire payload to the evaluator's use-case model.
@@ -45,14 +46,15 @@ func (r CreateAssessmentRequest) ToDomain() erh.UseCase {
 		})
 	}
 	return erh.UseCase{
-		Name:            r.UseCase.Name,
-		Domain:          r.UseCase.Domain,
-		Summary:         r.UseCase.Description,
-		TargetUsers:     r.UseCase.TargetUsers,
-		SDGs:            r.UseCase.SDGs,
-		OpenDataSources: r.UseCase.OpenDataSources,
-		AICapabilities:  r.UseCase.AICapabilities,
-		Safeguards:      r.UseCase.Safeguards,
-		Personas:        personas,
+		Name:                 r.UseCase.Name,
+		Domain:               r.UseCase.Domain,
+		Summary:              r.UseCase.Description,
+		TargetUsers:          r.UseCase.TargetUsers,
+		SDGs:                 r.UseCase.SDGs,
+		OpenDataSources:      r.UseCase.OpenDataSources,
+		AICapabilities:       r.UseCase.AICapabilities,
+		Safeguards:           r.UseCase.Safeguards,
+		Personas:             personas,
+		OpenDataMeasurements: r.OpenDataMeasurements,
 	}
 }

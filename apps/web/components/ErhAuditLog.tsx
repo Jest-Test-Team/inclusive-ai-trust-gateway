@@ -14,6 +14,7 @@ import {
   safetySignals,
   type ErhEvaluation,
   type Locale,
+  type OpenDataRowMeasurement,
   type PublicServiceUseCase,
 } from "@iatg/shared";
 
@@ -140,7 +141,15 @@ function riskBand(risk: number): "good" | "warning" | "critical" {
   return "critical";
 }
 
-export function ErhAuditLog({ useCase, locale }: { useCase: PublicServiceUseCase; locale: Locale }) {
+export function ErhAuditLog({
+  useCase,
+  locale,
+  openDataMeasurements,
+}: {
+  useCase: PublicServiceUseCase;
+  locale: Locale;
+  openDataMeasurements?: OpenDataRowMeasurement[];
+}) {
   const t = copy[locale];
   const [lines, setLines] = useState<LogLine[]>([]);
   const [busy, setBusy] = useState(false);
@@ -158,10 +167,23 @@ export function ErhAuditLog({ useCase, locale }: { useCase: PublicServiceUseCase
       if (runId.current === myRun) setLines((prev) => [...prev, line]);
     };
 
-    const evalPromise = evaluateWithErh("/api/erh", useCase).catch((err: unknown) => err as Error);
+    const evalPromise = evaluateWithErh("/api/erh", useCase, fetch, openDataMeasurements).catch(
+      (err: unknown) => err as Error,
+    );
 
     push({ text: t.boot, tone: "info" });
     await sleep(280);
+    const rows = (openDataMeasurements ?? []).reduce((n, m) => n + (m.rowsSampled || 0), 0);
+    if (rows > 0) {
+      push({
+        text:
+          locale === "zh-TW"
+            ? `串接開放資料 CSV 量測：抽樣 ${rows} 列，調整人物誌 judgment`
+            : `Open-data CSV metrics: ${rows} rows sampled — adjusting persona judgments`,
+        tone: "ok",
+      });
+      await sleep(240);
+    }
     for (const persona of useCase.personas) {
       push({ text: t.persona(persona.label, persona.barriers.join(", ") || "—"), tone: "info" });
       await sleep(240);

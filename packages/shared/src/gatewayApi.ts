@@ -1,3 +1,4 @@
+import type { OpenDataRowMeasurement } from "./openDataMetrics";
 import type { PublicServiceUseCase } from "./types";
 
 export type GatewaySurface =
@@ -137,10 +138,13 @@ export function createGatewayClient(config: GatewayClientConfig) {
       return request<GatewayHealth>("/healthz", { method: "GET" }, false);
     },
 
-    createAssessment(useCase: PublicServiceUseCase) {
+    createAssessment(useCase: PublicServiceUseCase, openDataMeasurements?: OpenDataRowMeasurement[]) {
       return request<AssessmentResponse>("/v1/assessments", {
         method: "POST",
-        body: JSON.stringify({ useCase: toRestUseCase(useCase) }),
+        body: JSON.stringify({
+          useCase: toRestUseCase(useCase),
+          openDataMeasurements: openDataMeasurements?.length ? openDataMeasurements : undefined,
+        }),
       });
     },
 

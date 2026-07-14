@@ -16,16 +16,19 @@ import {
   probeEngines,
   probeGateway,
   safetySignals,
+  safetySignalsWithOpenDataProvenance,
   useCases,
   type EngineProbeResult,
   type ErhEvaluation,
   type GatewayProbeResult,
   type LiveSafetyEvent,
   type Locale,
+  type OpenDataRowMeasurement,
   type PublicServiceUseCase,
 } from "@iatg/shared";
 import { apiBaseURL, apiKey, gateway, liveMode, openLiveFeed } from "../lib/api";
 import { readLocale, subscribeLocale } from "../lib/locale";
+import { useOpenDataMeasurements } from "../lib/useOpenDataMeasurements";
 import { Playground } from "./Playground";
 import { AttackSimulator } from "./AttackSimulator";
 import { ErhAuditLog } from "./ErhAuditLog";
@@ -78,10 +81,11 @@ const copy = {
     metricAgentSafety: "Agent safety readiness",
     riskLabels: { Low: "Low", Medium: "Medium", High: "High" } as Record<string, string>,
     openDataExplain:
-      "How many curated open-data source categories this scenario cites. Score = min(100, sources × 22). Four sources → 88/100.",
-    openDataHowTo100: "Reach 100 by linking ≥5 open-data source categories on the use case (5 × 22 ≥ 100).",
+      "Blend of catalog sources (35%) and live CSV row metrics from data.gov.tw (65%): equity-column coverage, fill rate, schema gaps, and sampled row volume.",
+    openDataHowTo100:
+      "Reach 100 when ≥5 source categories are linked and measured CSVs show strong equity coverage + fill (few schema gaps).",
     agentSafetyExplain:
-      "ADM control inventory readiness: each ready control +28, each partial +14. Today: 2 ready + 2 partial = 84.",
+      "ADM control inventory readiness: each ready control +28, each partial +14. CSV provenance measurement can promote Open-data provenance checks to ready.",
     agentSafetyHowTo100: "Reach 100 when all four ADM controls are ready (4 × 28), or 3 ready + 2 partial.",
     erhRiskExplain:
       "Fairness risk 0–100 from the ERH engine (higher = worse). ≤33 Low, ≤66 Medium, >66 High.",
@@ -152,10 +156,10 @@ const copy = {
     metricAgentSafety: "代理安全準備度",
     riskLabels: { Low: "低", Medium: "中", High: "高" } as Record<string, string>,
     openDataExplain:
-      "此情境引用了幾個開放資料來源類別。分數 = min(100, 來源數 × 22)。四個來源 → 88/100。",
-    openDataHowTo100: "要到 100：在 use case 掛上至少 5 個開放資料來源類別（5 × 22 ≥ 100）。",
+      "35% 來自情境掛載的來源類別，65% 來自 data.gov.tw CSV 列量測（平權欄位涵蓋、填寫率、schema 缺口、抽樣列數）。",
+    openDataHowTo100: "要到 100：掛 ≥5 個來源類別，且量測到的 CSV 平權涵蓋與填寫率高、缺口少。",
     agentSafetyExplain:
-      "ADM 控制項就緒度：每個 ready +28、每個 partial +14。目前 2 ready + 2 partial = 84。",
+      "ADM 控制項就緒度：每個 ready +28、每個 partial +14。成功量測 CSV 後可把「Open-data provenance」升為 ready。",
     agentSafetyHowTo100: "要到 100：四項 ADM 控制皆為 ready（4 × 28），或 3 ready + 2 partial。",
     erhRiskExplain:
       "ERH 引擎回傳的公平風險 0–100（越高越危險）。≤33 低、≤66 中、>66 高。",
@@ -190,11 +194,16 @@ export function Dashboard() {
   const [locale, setLocale] = useState<Locale>("en");
   const localUseCases = getUseCases(locale);
   const selected = localUseCases.find((useCase) => useCase.id === selectedId) ?? localUseCases[0];
+  const { measurements } = useOpenDataMeasurements(selected.id, { ingestProvenance: true });
+  const effectiveSignals = useMemo(
+    () => safetySignalsWithOpenDataProvenance(safetySignals, measurements),
+    [measurements],
+  );
   // Scores are locale-independent (they count structure, not words), but the
   // generated strength/gap strings are localized for display.
   const assessment = useMemo(
-    () => localizeAssessment(assessUseCase(selected, safetySignals), locale),
-    [selected, locale],
+    () => localizeAssessment(assessUseCase(selected, effectiveSignals, measurements), locale),
+    [selected, locale, effectiveSignals, measurements],
   );
   const t = copy[locale];
 
@@ -369,11 +378,11 @@ export function Dashboard() {
           </article>
         </div>
         <div style={{ marginTop: 14 }}>
-          <ErhAuditLog useCase={selected} locale={locale} />
+          <ErhAuditLog useCase={selected} locale={locale} openDataMeasurements={measurements} />
         </div>
       </section>
 
-      <OpenDataPanel locale={locale} scenarioId={selected.id} />
+      <OpenDataPanel locale={locale} scenarioId={selected.id} measurements={measurements} />
 
       <SdgPriorityPanel locale={locale} t={t} />
 
@@ -385,10 +394,10 @@ export function Dashboard() {
         </div>
         <div className="console-stack">
           <ImpactBoard locale={locale} />
-          <ApiSurfacePanel useCase={selected} t={t} />
+          <ApiSurfacePanel useCase={selected} t={t} openDataMeasurements={measurements} />
           <AttackSimulator locale={locale} />
           <Playground locale={locale} />
-          <EnginesPanel useCase={selected} t={t} />
+          <EnginesPanel useCase={selected} t={t} openDataMeasurements={measurements} />
         </div>
       </section>
 
@@ -529,7 +538,15 @@ function SafetyPanel({ locale, t }: { locale: Locale; t: Copy }) {
   );
 }
 
-function ApiSurfacePanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Copy }) {
+function ApiSurfacePanel({
+  useCase,
+  t,
+  openDataMeasurements,
+}: {
+  useCase: PublicServiceUseCase;
+  t: Copy;
+  openDataMeasurements?: OpenDataRowMeasurement[];
+}) {
   const [results, setResults] = useState<GatewayProbeResult[]>([]);
   const [running, setRunning] = useState(false);
   const [lastAction, setLastAction] = useState("");
@@ -555,8 +572,8 @@ function ApiSurfacePanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Cop
   }, [useCase]);
 
   async function createDemoAssessment() {
-    const created = await gateway.createAssessment(useCase);
-    setLastAction(`Created ${created.id}`);
+    const created = await gateway.createAssessment(useCase, openDataMeasurements);
+    setLastAction(`Created ${created.id} (openData ${created.openDataReadiness})`);
     runProbe();
   }
 
@@ -620,7 +637,15 @@ function ApiSurfacePanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Cop
  * through the same-origin /api/adm and /api/erh proxies, so it works even
  * before the trust gateway itself is deployed.
  */
-function EnginesPanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Copy }) {
+function EnginesPanel({
+  useCase,
+  t,
+  openDataMeasurements,
+}: {
+  useCase: PublicServiceUseCase;
+  t: Copy;
+  openDataMeasurements?: OpenDataRowMeasurement[];
+}) {
   const [results, setResults] = useState<EngineProbeResult[]>([]);
   const [evaluation, setEvaluation] = useState<ErhEvaluation | null>(null);
   const [busy, setBusy] = useState(false);
@@ -630,7 +655,12 @@ function EnginesPanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Copy }
   async function refreshProbes() {
     setProbing(true);
     try {
-      setResults(await probeEngines({ admBaseURL: "/api/adm", erhBaseURL: "/api/erh" }, useCase));
+      setResults(
+        await probeEngines(
+          { admBaseURL: "/api/adm", erhBaseURL: "/api/erh", openDataMeasurements },
+          useCase,
+        ),
+      );
     } finally {
       setProbing(false);
     }
@@ -638,19 +668,22 @@ function EnginesPanel({ useCase, t }: { useCase: PublicServiceUseCase; t: Copy }
 
   useEffect(() => {
     let cancelled = false;
-    probeEngines({ admBaseURL: "/api/adm", erhBaseURL: "/api/erh" }, useCase).then((next) => {
+    probeEngines(
+      { admBaseURL: "/api/adm", erhBaseURL: "/api/erh", openDataMeasurements },
+      useCase,
+    ).then((next) => {
       if (!cancelled) setResults(next);
     });
     return () => {
       cancelled = true;
     };
-  }, [useCase]);
+  }, [useCase, openDataMeasurements]);
 
   async function runErh() {
     setBusy(true);
     setError("");
     try {
-      setEvaluation(await evaluateWithErh("/api/erh", useCase));
+      setEvaluation(await evaluateWithErh("/api/erh", useCase, fetch, openDataMeasurements));
     } catch (err) {
       setEvaluation(null);
       setError(err instanceof Error ? err.message : String(err));

@@ -17,15 +17,16 @@ import (
 
 // UseCase is the evaluator's view of a public-service AI use case.
 type UseCase struct {
-	Name            string
-	Domain          string
-	Summary         string
-	TargetUsers     []string
-	SDGs            []string
-	OpenDataSources []string
-	AICapabilities  []string
-	Safeguards      []string
-	Personas        []Persona
+	Name                 string
+	Domain               string
+	Summary              string
+	TargetUsers          []string
+	SDGs                 []string
+	OpenDataSources      []string
+	AICapabilities       []string
+	Safeguards           []string
+	Personas             []Persona
+	OpenDataMeasurements []OpenDataMeasurement
 }
 
 type Persona struct {
@@ -156,22 +157,67 @@ func (c *EngineClient) Evaluate(ctx context.Context, uc UseCase, signals []Safet
 // ToEngineSamples converts a use case into ERH decision samples: each
 // persona is one decision, where complexity grows with barrier count, the
 // true value is full service (1.0), and the judged quality degrades with
-// unmitigated barriers and recovers with safeguards.
+// unmitigated barriers and recovers with safeguards. When CSV open-data
+// measurements are present, judgment is further adjusted for equity gaps.
 func ToEngineSamples(uc UseCase) []engineSample {
-	if len(uc.Personas) == 0 {
-		return []engineSample{{
-			ID: "use-case", Complexity: 1, Value: 1, Judgment: 0.8, Weight: 1,
-			Context: map[string]any{"name": uc.Name, "domain": uc.Domain},
-		}}
+	odDelta := openDataJudgmentDelta(uc.OpenDataMeasurements)
+	odContext := map[string]any{"openDataMeasured": false}
+	if len(uc.OpenDataMeasurements) > 0 {
+		ok := filterMeasured(uc.OpenDataMeasurements)
+		rows := 0
+		var equity float64
+		gaps := 0
+		for _, m := range ok {
+			rows += m.RowsSampled
+			equity += m.EquityCoverage
+			if m.SchemaGap {
+				gaps++
+			}
+		}
+		meanEquity := 0.0
+		if len(ok) > 0 {
+			meanEquity = equity / float64(len(ok))
+		}
+		odContext = map[string]any{
+			"openDataMeasured":   true,
+			"openDataRows":       rows,
+			"openDataMeanEquity": meanEquity,
+			"openDataSchemaGaps": gaps,
+		}
 	}
-	samples := make([]engineSample, 0, len(uc.Personas))
-	for i, p := range uc.Personas {
-		judgment := 1.0 - 0.3*float64(len(p.Barriers)) + 0.1*float64(len(uc.Safeguards))
+
+	if len(uc.Personas) == 0 {
+		judgment := 0.8 + odDelta
 		if judgment > 1 {
 			judgment = 1
 		}
 		if judgment < -1 {
 			judgment = -1
+		}
+		ctx := map[string]any{"name": uc.Name, "domain": uc.Domain}
+		for k, v := range odContext {
+			ctx[k] = v
+		}
+		return []engineSample{{
+			ID: "use-case", Complexity: 1, Value: 1, Judgment: judgment, Weight: 1,
+			Context: ctx,
+		}}
+	}
+	samples := make([]engineSample, 0, len(uc.Personas))
+	for i, p := range uc.Personas {
+		judgment := 1.0 - 0.3*float64(len(p.Barriers)) + 0.1*float64(len(uc.Safeguards)) + odDelta
+		if judgment > 1 {
+			judgment = 1
+		}
+		if judgment < -1 {
+			judgment = -1
+		}
+		ctx := map[string]any{
+			"persona": p.Label, "ageGroup": p.AgeGroup, "region": p.Region,
+			"barriers": p.Barriers,
+		}
+		for k, v := range odContext {
+			ctx[k] = v
 		}
 		samples = append(samples, engineSample{
 			ID:         fmt.Sprintf("persona-%d", i),
@@ -179,10 +225,7 @@ func ToEngineSamples(uc UseCase) []engineSample {
 			Value:      1,
 			Judgment:   judgment,
 			Weight:     1,
-			Context: map[string]any{
-				"persona": p.Label, "ageGroup": p.AgeGroup, "region": p.Region,
-				"barriers": p.Barriers,
-			},
+			Context:    ctx,
 		})
 	}
 	return samples

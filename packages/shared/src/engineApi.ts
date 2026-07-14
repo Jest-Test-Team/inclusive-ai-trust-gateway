@@ -4,6 +4,7 @@
 // through the web app's /api/adm and /api/erh proxies (or directly via
 // EXPO_PUBLIC_* URLs on mobile).
 
+import { openDataJudgmentDelta, type OpenDataRowMeasurement } from "./openDataMetrics";
 import type { PublicServiceUseCase } from "./types";
 
 export interface ServiceEndpoints {
@@ -57,18 +58,43 @@ interface ErhSample {
 /**
  * Mirrors the gateway's Go mapping (services/gateway/internal/erh):
  * one decision sample per persona; complexity grows with barriers,
- * judged service quality degrades with unmitigated barriers.
+ * judged service quality degrades with unmitigated barriers and with
+ * weak open-data equity coverage when CSV measurements are supplied.
  */
-export function useCaseToErhSamples(useCase: PublicServiceUseCase): ErhSample[] {
+export function useCaseToErhSamples(
+  useCase: PublicServiceUseCase,
+  openDataMeasurements?: OpenDataRowMeasurement[],
+): ErhSample[] {
+  const odDelta = openDataJudgmentDelta(openDataMeasurements);
+  const odContext =
+    openDataMeasurements && openDataMeasurements.length > 0
+      ? {
+          openDataMeasured: true,
+          openDataRows: openDataMeasurements.reduce((n, m) => n + (m.rowsSampled || 0), 0),
+          openDataMeanEquity: Number(
+            (
+              openDataMeasurements
+                .filter((m) => !m.error && m.rowsSampled > 0)
+                .reduce((s, m) => s + m.equityCoverage, 0) /
+                Math.max(
+                  1,
+                  openDataMeasurements.filter((m) => !m.error && m.rowsSampled > 0).length,
+                )
+            ).toFixed(3),
+          ),
+          openDataSchemaGaps: openDataMeasurements.filter((m) => m.schemaGap).length,
+        }
+      : { openDataMeasured: false };
+
   if (useCase.personas.length === 0) {
     return [
       {
         id: "use-case",
         complexity: 1,
         value: 1,
-        judgment: 0.8,
+        judgment: Math.max(-1, Math.min(1, 0.8 + odDelta)),
         weight: 1,
-        context: { name: useCase.name, domain: useCase.domain },
+        context: { name: useCase.name, domain: useCase.domain, ...odContext },
       },
     ];
   }
@@ -78,10 +104,18 @@ export function useCaseToErhSamples(useCase: PublicServiceUseCase): ErhSample[] 
     value: 1,
     judgment: Math.max(
       -1,
-      Math.min(1, 1 - 0.3 * persona.barriers.length + 0.1 * useCase.safeguards.length),
+      Math.min(
+        1,
+        1 - 0.3 * persona.barriers.length + 0.1 * useCase.safeguards.length + odDelta,
+      ),
     ),
     weight: 1,
-    context: { persona: persona.label, region: persona.region, barriers: persona.barriers },
+    context: {
+      persona: persona.label,
+      region: persona.region,
+      barriers: persona.barriers,
+      ...odContext,
+    },
   }));
 }
 
@@ -89,11 +123,15 @@ export async function evaluateWithErh(
   baseURL: string,
   useCase: PublicServiceUseCase,
   fetchImpl: typeof fetch = fetch,
+  openDataMeasurements?: OpenDataRowMeasurement[],
 ): Promise<ErhEvaluation> {
   const res = await fetchImpl(`${trim(baseURL)}/v1/evaluate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ samples: useCaseToErhSamples(useCase), judge_name: useCase.name }),
+    body: JSON.stringify({
+      samples: useCaseToErhSamples(useCase, openDataMeasurements),
+      judge_name: useCase.name,
+    }),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
@@ -103,7 +141,12 @@ export async function evaluateWithErh(
 }
 
 export async function probeEngines(
-  config: { admBaseURL: string; erhBaseURL: string; fetchImpl?: typeof fetch },
+  config: {
+    admBaseURL: string;
+    erhBaseURL: string;
+    fetchImpl?: typeof fetch;
+    openDataMeasurements?: OpenDataRowMeasurement[];
+  },
   useCase: PublicServiceUseCase,
 ): Promise<EngineProbeResult[]> {
   const fetcher = config.fetchImpl ?? fetch;
@@ -127,8 +170,15 @@ export async function probeEngines(
 
   await record(results, "erh", "ERH live evaluation", async () => {
     if (!config.erhBaseURL) throw new Error("ERH base URL not configured");
-    const evaluation = await evaluateWithErh(config.erhBaseURL, useCase, fetcher);
-    return `risk ${Math.round(evaluation.risk_score)}/100, alpha ${evaluation.estimated_exponent.toFixed(2)}`;
+    const evaluation = await evaluateWithErh(
+      config.erhBaseURL,
+      useCase,
+      fetcher,
+      config.openDataMeasurements,
+    );
+    const rows = (config.openDataMeasurements ?? []).reduce((n, m) => n + (m.rowsSampled || 0), 0);
+    const suffix = rows > 0 ? `, open-data rows ${rows}` : "";
+    return `risk ${Math.round(evaluation.risk_score)}/100, alpha ${evaluation.estimated_exponent.toFixed(2)}${suffix}`;
   });
 
   return results;

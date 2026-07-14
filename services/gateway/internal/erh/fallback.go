@@ -24,7 +24,7 @@ func (Fallback) score(uc UseCase, signals []SafetySignal) Result {
 		totalBarriers += len(p.Barriers)
 	}
 	safeguardCoverage := len(uc.Safeguards) * 8
-	openData := domain.ClampScore(float64(len(uc.OpenDataSources) * 22))
+	openData := domain.ClampScore(float64(scoreOpenDataReadiness(len(uc.OpenDataSources), uc.OpenDataMeasurements)))
 
 	ready, partial := 0, 0
 	for _, s := range signals {
