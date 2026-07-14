@@ -15,6 +15,7 @@ const copy: Record<Locale, {
   eyebrow: string;
   title: string;
   intro: string;
+  measurementNote: string;
   usedFor: string;
   bias: string;
   recommend: string;
@@ -34,7 +35,9 @@ const copy: Record<Locale, {
     eyebrow: "Open data",
     title: "Sources, bias findings & feedback to publishers",
     intro:
-      "Datasets marked LIVE are fetched from data.gov.tw's open-data API in real time — the schema and accessibility gap below are read straight from the government's own columns, not hand-authored.",
+      "Datasets marked LIVE are fetched from data.gov.tw's open-data API in real time — the schema and accessibility gap below are read straight from the government's own columns, not hand-authored. These schemas feed the open-data readiness score and bias findings; they are not row-streamed into ADM or ERH compute.",
+    measurementNote:
+      "Honest scope: LIVE fetch = metadata/schema for equity-gap evidence. ADM scores attack telemetry; ERH scores persona decision samples. Neither engine ingests CSV rows from these datasets today.",
     usedFor: "Used for",
     bias: "Bias if fed to AI raw",
     recommend: "Recommended fields to add",
@@ -54,7 +57,9 @@ const copy: Record<Locale, {
     eyebrow: "開放資料",
     title: "資料來源、偏差發現與對資料機關的回饋",
     intro:
-      "標示 LIVE 的資料集為即時串接 data.gov.tw 開放資料 API — 下方的欄位結構與無障礙缺口，直接讀取自政府自身的欄位，並非人工撰寫。",
+      "標示 LIVE 的資料集為即時串接 data.gov.tw 開放資料 API — 下方的欄位結構與無障礙缺口，直接讀取自政府自身的欄位，並非人工撰寫。這些欄位用來計算開放資料準備度與偏差發現；目前並未把 CSV 列資料串進 ADM 或 ERH 運算。",
+    measurementNote:
+      "誠實範圍：LIVE 抓取 = 詮釋資料／欄位結構，作為平權缺口證據。ADM 評的是攻擊遙測；ERH 評的是人物誌決策樣本。兩邊都尚未吃這些資料集的列資料。",
     usedFor: "用途",
     bias: "直接餵給 AI 的偏差",
     recommend: "建議新增欄位",
@@ -98,6 +103,7 @@ export function OpenDataPanel({ locale, scenarioId }: { locale: Locale; scenario
         <p className="eyebrow">{t.eyebrow}</p>
         <h2>{t.title}</h2>
         <p>{t.intro}</p>
+        <p className="api-empty">{t.measurementNote}</p>
       </div>
       <div className="opendata-grid">
         {sources.map((src) => (

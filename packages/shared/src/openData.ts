@@ -70,6 +70,66 @@ export const openDataSources: OpenDataSource[] = [
     },
   },
   {
+    id: "ltc-abc-sites",
+    scenarioId: "care-navigation",
+    datasetId: "88270",
+    name: {
+      en: "Long-term care ABC service sites",
+      "zh-TW": "長照 ABC 據點",
+    },
+    agency: { en: "Ministry of Health and Welfare", "zh-TW": "衛生福利部" },
+    sourceUrl: "https://data.gov.tw/dataset/88270",
+    format: "CSV",
+    usedFor: {
+      en: "Lets the care assistant recommend nearby A/B/C contracted sites with coordinates and service types.",
+      "zh-TW": "讓照護助理依座標與服務類型，推薦附近長照 2.0 A/B/C 特約據點。",
+    },
+    biasNote: {
+      en: "The live schema has GIS and contract fields but no wheelchair-access or languages-supported column, so an AI can route someone to a site they cannot physically enter or understand.",
+      "zh-TW": "即時欄位有 GIS 與特約資訊，卻無輪椅可及或支援語言欄位，AI 可能引導民眾到進不去或聽不懂的據點。",
+    },
+    recommendedFields: {
+      en: ["wheelchair_access (bool)", "languages_supported[]", "step_free_entrance (bool)", "appointment_required (bool)"],
+      "zh-TW": ["wheelchair_access（布林值）", "languages_supported[]", "無障礙出入口（布林值）", "是否需預約（布林值）"],
+    },
+    accessibilityTokens: ["wheelchair", "輪椅", "無障礙", "language", "語言", "accessible"],
+    gapLabel: { en: "accessibility / language", "zh-TW": "無障礙／語言" },
+    provision: {
+      en: "We publish an accessibility-enriched ABC directory overlay and flag sites missing equity fields.",
+      "zh-TW": "我們回饋補上無障礙標籤的 ABC 據點疊圖，並標示缺漏平權欄位的據點。",
+    },
+  },
+  {
+    id: "disability-institutions",
+    scenarioId: "care-navigation",
+    datasetId: "12061",
+    name: {
+      en: "National disability welfare institutions directory",
+      "zh-TW": "全國身心障礙福利機構一覽表",
+    },
+    agency: { en: "Ministry of Health and Welfare (SFAA)", "zh-TW": "衛生福利部社會及家庭署" },
+    sourceUrl: "https://data.gov.tw/dataset/12061",
+    format: "CSV",
+    usedFor: {
+      en: "Expands care matching beyond elderly facilities to disability day/residential services.",
+      "zh-TW": "把照護媒合從老人機構擴到身心障礙日間／住宿服務。",
+    },
+    biasNote: {
+      en: "Capacity and evaluation grades exist, but no language or transport-access fields — minority-language and rural users are invisible in matching.",
+      "zh-TW": "雖有服務人數與評鑑等第，卻無語言或交通可及欄位，少數語言與偏鄉使用者在媒合中被隱形。",
+    },
+    recommendedFields: {
+      en: ["languages_supported[]", "wheelchair_access (bool)", "public_transit_notes", "waitlist_status"],
+      "zh-TW": ["languages_supported[]", "wheelchair_access（布林值）", "大眾運輸說明", "候補狀態"],
+    },
+    accessibilityTokens: ["wheelchair", "輪椅", "無障礙", "language", "語言", "accessible"],
+    gapLabel: { en: "accessibility / language", "zh-TW": "無障礙／語言" },
+    provision: {
+      en: "We return a merged care+disability catalog with equity tags for referral engines.",
+      "zh-TW": "我們回饋合併後的照護＋身障機構名冊，並附平權標籤供轉介引擎使用。",
+    },
+  },
+  {
     id: "accessible-facilities",
     scenarioId: "care-navigation",
     datasetId: "128416",
@@ -158,6 +218,66 @@ export const openDataSources: OpenDataSource[] = [
     provision: {
       en: "We publish a township-level connectivity-equity index derived from the list plus the ERH fairness score per region.",
       "zh-TW": "我們回饋以此清單推導的鄉鎮級連網平權指數，並附上各地區的 ERH 公平性分數。",
+    },
+  },
+  {
+    id: "rural-broadband-subsidy",
+    scenarioId: "education-access",
+    datasetId: "161777",
+    name: {
+      en: "Rural broadband infrastructure subsidy progress",
+      "zh-TW": "普及偏鄉寬頻接取基礎建設計畫補助辦理情形",
+    },
+    agency: { en: "National Communications Commission / MOTC lineage", "zh-TW": "數位發展部／相關電信主管機關" },
+    sourceUrl: "https://data.gov.tw/dataset/161777",
+    format: "CSV",
+    usedFor: {
+      en: "Grounds education-access audits with where rural broadband build-out funding actually landed.",
+      "zh-TW": "以偏鄉寬頻建設補助實際落地處，佐證學習近用稽核。",
+    },
+    biasNote: {
+      en: "County/township subsidy rows exist, but no household device rate or median Mbps — an AI may treat 'subsidized township' as 'students can learn online'.",
+      "zh-TW": "雖有縣市／鄉鎮補助列，卻無家戶載具率或中位 Mbps，AI 可能把「有補助的鄉鎮」當成「學生都能線上學習」。",
+    },
+    recommendedFields: {
+      en: ["median_mbps", "device_access_rate", "school_coverage_flag", "languages_of_support[]"],
+      "zh-TW": ["中位 Mbps", "載具普及率", "校園涵蓋標記", "支援服務語言[]"],
+    },
+    accessibilityTokens: ["broadband", "寬頻", "mbps", "device", "載具", "連網", "網路"],
+    gapLabel: { en: "connectivity / device", "zh-TW": "連網／載具" },
+    provision: {
+      en: "We join subsidy geography to school matching lists and publish a connectivity-gap layer for auditors.",
+      "zh-TW": "我們把補助地理與學伴媒合名單接合，並發布連網缺口圖層供稽核使用。",
+    },
+  },
+  {
+    id: "universal-service-villages",
+    scenarioId: "education-access",
+    datasetId: "157735",
+    name: {
+      en: "Universal-service villages for data connectivity",
+      "zh-TW": "電信普及服務數據通信特定村里",
+    },
+    agency: { en: "Telecom universal-service program", "zh-TW": "電信普及服務計畫" },
+    sourceUrl: "https://data.gov.tw/dataset/157735",
+    format: "CSV",
+    usedFor: {
+      en: "Identifies designated villages still needing data-connectivity universal service — critical for rural student personas.",
+      "zh-TW": "標示仍需數據通信普及服務的指定村里，對偏鄉學生人物誌至關重要。",
+    },
+    biasNote: {
+      en: "Village designation and technology type are listed, but not student device sharing or after-school bandwidth — tutoring AIs overestimate reach.",
+      "zh-TW": "雖有村里指定與通訊技術，卻無學生共用裝置或課後頻寬資訊，課輔 AI 會高估可及範圍。",
+    },
+    recommendedFields: {
+      en: ["student_device_share_rate", "after_hours_bandwidth", "school_id_linkage", "support_languages[]"],
+      "zh-TW": ["學生共用裝置率", "課後可用頻寬", "學校代碼串接", "支援語言[]"],
+    },
+    accessibilityTokens: ["broadband", "寬頻", "device", "載具", "連網", "網路", "通訊"],
+    gapLabel: { en: "connectivity / device", "zh-TW": "連網／載具" },
+    provision: {
+      en: "We publish a village↔school join table with equity flags for education AI pilots.",
+      "zh-TW": "我們回饋村里↔學校對照表，並附平權標記供教育 AI 試點使用。",
     },
   },
 ];

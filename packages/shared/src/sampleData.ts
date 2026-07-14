@@ -18,6 +18,7 @@ export const useCases: PublicServiceUseCase[] = [
       "public care service directories",
       "accessible transportation feeds",
       "regional demographic indicators",
+      "long-term care ABC service sites",
     ],
     aiCapabilities: [
       "plain-language service matching",
@@ -117,6 +118,7 @@ export const useCases: PublicServiceUseCase[] = [
       "school broadband availability",
       "public curriculum standards",
       "assistive technology guidance",
+      "rural broadband subsidy records",
     ],
     aiCapabilities: [
       "learning-support quality checks",

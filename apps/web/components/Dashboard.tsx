@@ -78,7 +78,7 @@ const copy = {
     metricAgentSafety: "Agent safety readiness",
     riskLabels: { Low: "Low", Medium: "Medium", High: "High" } as Record<string, string>,
     openDataExplain:
-      "How many curated open-data source categories this scenario cites. Score = min(100, sources × 22). Care has 3 → 66/100.",
+      "How many curated open-data source categories this scenario cites. Score = min(100, sources × 22). Four sources → 88/100.",
     openDataHowTo100: "Reach 100 by linking ≥5 open-data source categories on the use case (5 × 22 ≥ 100).",
     agentSafetyExplain:
       "ADM control inventory readiness: each ready control +28, each partial +14. Today: 2 ready + 2 partial = 84.",
@@ -152,7 +152,7 @@ const copy = {
     metricAgentSafety: "代理安全準備度",
     riskLabels: { Low: "低", Medium: "中", High: "高" } as Record<string, string>,
     openDataExplain:
-      "此情境引用了幾個開放資料來源類別。分數 = min(100, 來源數 × 22)。照護情境 3 個來源 → 66/100。",
+      "此情境引用了幾個開放資料來源類別。分數 = min(100, 來源數 × 22)。四個來源 → 88/100。",
     openDataHowTo100: "要到 100：在 use case 掛上至少 5 個開放資料來源類別（5 × 22 ≥ 100）。",
     agentSafetyExplain:
       "ADM 控制項就緒度：每個 ready +28、每個 partial +14。目前 2 ready + 2 partial = 84。",

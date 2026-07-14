@@ -15,7 +15,7 @@ const useCasesZh: PublicServiceUseCase[] = [
     name: "共融照護導航",
     summary: "以 AI 協助長者、照顧者與身心障礙者取得合適的照護服務。",
     targetUsers: ["長者", "家庭照顧者", "身心障礙者", "在地照護個管員"],
-    openDataSources: ["公共照護服務名錄", "無障礙交通資料", "區域人口統計指標"],
+    openDataSources: ["公共照護服務名錄", "無障礙交通資料", "區域人口統計指標", "長照 ABC 據點名冊"],
     aiCapabilities: ["白話文服務媒合", "多語問答", "風險意識轉介摘要"],
     safeguards: ["高風險轉介需人工審核", "每個管道皆做無障礙檢查", "個資最小化"],
     personas: [
@@ -69,7 +69,7 @@ const useCasesZh: PublicServiceUseCase[] = [
     name: "AI 學習近用稽核",
     summary: "稽核 AI 家教與校園支援工具，確保不同需求與地區的學生都能公平使用。",
     targetUsers: ["學生", "教師", "特教個管員", "偏鄉學校"],
-    openDataSources: ["校園寬頻涵蓋資料", "公開課綱標準", "輔助科技指引"],
+    openDataSources: ["校園寬頻涵蓋資料", "公開課綱標準", "輔助科技指引", "偏鄉寬頻建設補助辦理情形"],
     aiCapabilities: ["學習支援品質檢查", "偏誤與調整需求審查", "給教師的風險摘要"],
     safeguards: ["符合年齡的資料界線", "教師可覆核", "偏誤漂移監測"],
     personas: [
