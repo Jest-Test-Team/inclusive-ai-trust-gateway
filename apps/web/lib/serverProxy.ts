@@ -9,6 +9,8 @@ export interface ProxyOptions {
   originEnv: string[];
   /** Fallback origin when no env var is set (empty = unconfigured). */
   defaultOrigin?: string;
+  /** Extra origins to try when the configured upstream returns 502/503/504. */
+  fallbackOrigins?: string[];
   /** Header name/env pair injected server-side (e.g. gateway API key). */
   injectKey?: { header: string; env: string[]; fallback: string };
   /** Upstream fetch timeout (ms). Default 12s to fail before platform 504. */
@@ -81,11 +83,13 @@ export function createProxyHandler(options: ProxyOptions) {
     // Follow redirects manually so the method and body survive: default
     // fetch semantics convert POST into GET on 301/302, which turned every
     // POST surface (GraphQL, UCP, Connect-RPC, MCP) into 405s upstream.
-    let response: Response;
-    let hop = new URL(target);
-    try {
+    const fetchUpstream = async (baseOrigin: string) => {
+      const nextTarget = new URL(path, baseOrigin.replace(/\/+$/, "") + "/");
+      target.searchParams.forEach((value, key) => nextTarget.searchParams.append(key, value));
+
+      let hop = new URL(nextTarget);
       for (let i = 0; ; i++) {
-        response = await fetch(hop, {
+        const response = await fetch(hop, {
           method: req.method,
           headers,
           body,
@@ -94,22 +98,44 @@ export function createProxyHandler(options: ProxyOptions) {
           signal: AbortSignal.timeout(timeoutMs),
         });
         const location = response.headers.get("location");
-        if (i >= 3 || !location || ![301, 302, 307, 308].includes(response.status)) break;
+        if (i >= 3 || !location || ![301, 302, 307, 308].includes(response.status)) {
+          return { response, hop };
+        }
         hop = new URL(location, hop);
       }
+    };
+
+    let response: Response;
+    let hop: URL;
+    try {
+      ({ response, hop } = await fetchUpstream(origin));
     } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      const timedOut = /aborted|timeout|TimeoutError/i.test(detail);
-      res.status(timedOut ? 504 : 502).json({
-        error: timedOut
-          ? `upstream timeout after ${timeoutMs}ms: ${hop.origin}`
-          : `upstream unreachable: ${hop.origin}`,
-        detail,
-        hint: timedOut
-          ? "Choreo component may be cold-starting, scaled to zero, or pointing at the wrong port (ERH must listen on 8080)."
-          : "Check the Choreo component is Deployed and the Vercel env URL matches its public endpoint.",
-      });
-      return;
+      const fallback = await tryFallbackOrigin(options.fallbackOrigins, fetchUpstream);
+      if (fallback) {
+        ({ response, hop } = fallback);
+        res.setHeader("x-iatg-fallback-origin", hop.origin);
+      } else {
+        const detail = error instanceof Error ? error.message : String(error);
+        const timedOut = /aborted|timeout|TimeoutError/i.test(detail);
+        res.status(timedOut ? 504 : 502).json({
+          error: timedOut
+            ? `upstream timeout after ${timeoutMs}ms: ${origin}`
+            : `upstream unreachable: ${origin}`,
+          detail,
+          hint: timedOut
+            ? "Choreo component may be cold-starting, scaled to zero, or pointing at the wrong port (ERH must listen on 8080)."
+            : "Check the Choreo component is Deployed and the Vercel env URL matches its public endpoint.",
+        });
+        return;
+      }
+    }
+
+    if ([502, 503, 504].includes(response.status)) {
+      const fallback = await tryFallbackOrigin(options.fallbackOrigins, fetchUpstream);
+      if (fallback) {
+        ({ response, hop } = fallback);
+        res.setHeader("x-iatg-fallback-origin", hop.origin);
+      }
     }
 
     res.status(response.status);
@@ -145,6 +171,21 @@ function firstEnv(names: string[]): string | undefined {
   for (const name of names) {
     const value = process.env[name];
     if (value) return value;
+  }
+  return undefined;
+}
+
+async function tryFallbackOrigin(
+  origins: string[] | undefined,
+  fetchUpstream: (origin: string) => Promise<{ response: Response; hop: URL }>,
+) {
+  for (const origin of origins ?? []) {
+    try {
+      const result = await fetchUpstream(origin);
+      if (![502, 503, 504].includes(result.response.status)) return result;
+    } catch {
+      // Keep the primary upstream error if every fallback is unavailable.
+    }
   }
   return undefined;
 }

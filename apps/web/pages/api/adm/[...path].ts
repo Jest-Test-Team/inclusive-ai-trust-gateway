@@ -4,4 +4,5 @@ import { createProxyHandler } from "../../../lib/serverProxy";
 
 export default createProxyHandler({
   originEnv: ["ADM_API_BASE_URL", "NEXT_PUBLIC_ADM_API_BASE_URL"],
+  fallbackOrigins: ["https://api.dennisleehappy.org"],
 });
