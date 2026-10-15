@@ -2,4 +2,4 @@ robotframework==7.1.1
 robotframework-requests==0.9.7
 robotframework-seleniumlibrary==6.9.0
 selenium>=4.27,<5
-requests==2.32.3
+requests==2.34.2
